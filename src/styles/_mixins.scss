@@ -2,6 +2,8 @@
 // Mixins & utilitaires de mise en page réutilisables.
 // ---------------------------------------------------------------------------
 
+@use 'variables' as *;
+
 @mixin flex($justify: flex-start, $align: center, $gap: 0) {
   display: flex;
   justify-content: $justify;
@@ -34,9 +36,31 @@
   text-overflow: ellipsis;
 }
 
-// Cible les écrans étroits (mobile / portrait).
+// Carte de surface élevée.
+@mixin card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+// Anneau de focus accessible.
+@mixin focus-ring {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+}
+
+// Cible les écrans étroits (mobile).
 @mixin mobile {
-  @media (max-width: 768px) {
+  @media (max-width: #{$breakpoint-sm}) {
+    @content;
+  }
+}
+
+// Cible tablette et en dessous.
+@mixin tablet-down {
+  @media (max-width: #{$breakpoint-md}) {
     @content;
   }
 }

@@ -1,0 +1,169 @@
+// ---------------------------------------------------------------------------
+// Composants d'interface homogènes (globaux). Utilisés dans toutes les vues
+// pour garantir un rendu cohérent : boutons, champs, cartes, panneaux.
+// ---------------------------------------------------------------------------
+
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// --- Boutons ---------------------------------------------------------------
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition);
+
+  &:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &--primary {
+    background: var(--brand);
+    color: #fff;
+  }
+  &--primary:hover {
+    background: var(--brand-strong);
+  }
+
+  &--ghost {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  &--ghost:hover {
+    border-color: var(--brand);
+    color: var(--brand-strong);
+  }
+
+  &--subtle {
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+  }
+
+  &--danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  &--danger:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  &--block {
+    width: 100%;
+  }
+  &--sm {
+    height: 32px;
+    padding: 0 12px;
+    font-size: var(--fs-xs);
+  }
+}
+
+// Bouton icône rond
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--transition);
+
+  &:hover {
+    border-color: var(--brand);
+    color: var(--brand-strong);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+// --- Champs de formulaire --------------------------------------------------
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  > label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+}
+
+.input,
+.select {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  transition: var(--transition);
+
+  &::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 70%, white);
+  }
+  &:hover {
+    border-color: var(--border-strong);
+  }
+  &:focus {
+    @include focus-ring;
+  }
+}
+
+.select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+// --- Conteneurs ------------------------------------------------------------
+
+.card {
+  @include card;
+}
+
+.muted {
+  color: var(--text-muted);
+}

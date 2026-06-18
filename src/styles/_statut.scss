@@ -1,0 +1,50 @@
+// ---------------------------------------------------------------------------
+// Couleurs de statut harmonisées. Chaque classe `statut-*` expose la teinte via
+// `--statut`, réutilisée par les pastilles (.chip), points (.dot) et cellules
+// du calendrier. Source unique partagée calendrier + légende + fiche.
+// ---------------------------------------------------------------------------
+
+.statut-reserve {
+  --statut: var(--statut-reserve);
+}
+.statut-demande {
+  --statut: var(--statut-demande);
+}
+.statut-essai {
+  --statut: var(--statut-essai);
+}
+.statut-autre {
+  --statut: var(--statut-autre);
+}
+.statut-perso {
+  --statut: var(--statut-perso);
+}
+.statut-over {
+  --statut: var(--statut-over);
+}
+.statut-today {
+  --statut: var(--statut-today);
+}
+
+// Pastille colorée (badge de statut)
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--statut, var(--brand)) 15%, white);
+  color: color-mix(in srgb, var(--statut, var(--brand)) 72%, black);
+}
+
+.chip__dot,
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--statut, var(--brand));
+  flex: none;
+}

@@ -1,0 +1,217 @@
+<div class="fiche">
+  <header class="fiche__head">
+    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+    <div class="fiche__title">
+      <button
+        class="icon-btn icon-btn--sm"
+        (click)="dayChanged.emit(-1)"
+        aria-label="Jour précédent"
+      >
+        ‹
+      </button>
+      <div class="fiche__day">
+        <h2>{{ data.date | frenchDate }}</h2>
+        <span class="chip" [class]="statutClass"
+          ><span class="chip__dot"></span>{{ statutLabel }}</span
+        >
+      </div>
+      <button class="icon-btn icon-btn--sm" (click)="dayChanged.emit(1)" aria-label="Jour suivant">
+        ›
+      </button>
+    </div>
+    <span class="fiche__spacer"></span>
+  </header>
+
+  @if (sameDayCount() > 1) {
+    <div class="fiche__events">
+      <button class="icon-btn icon-btn--sm" (click)="eventChanged.emit(-1)">‹</button>
+      <span class="muted">{{ sameDayCount() - 1 }} autre événement ce jour</span>
+      <button class="icon-btn icon-btn--sm" (click)="eventChanged.emit(1)">›</button>
+    </div>
+  }
+
+  @if (!isEssai) {
+    <div class="fiche__body">
+      <section class="card section">
+        <h3 class="section__title">Coordonnées</h3>
+        <div class="grid">
+          <div class="field">
+            <label>Nom</label>
+            <input class="input" [(ngModel)]="data.client.nom" placeholder="Nom" />
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input class="input" [(ngModel)]="data.client.tel" placeholder="Téléphone" />
+          </div>
+          <div class="field">
+            <label>E-mail</label>
+            <input class="input" [(ngModel)]="data.client.mail" placeholder="E-mail" />
+          </div>
+          <div class="field">
+            <label>Adresse</label>
+            <input class="input" [(ngModel)]="data.client.adresse" placeholder="Adresse" />
+          </div>
+          <div class="field">
+            <label>Code postal &amp; ville</label>
+            <input
+              class="input"
+              [(ngModel)]="data.client.codepostal"
+              placeholder="Code postal & ville"
+            />
+          </div>
+          @if (!isPerso) {
+            <div class="field">
+              <label>Mariages.net</label>
+              <input
+                class="input"
+                [(ngModel)]="data.mariagenet"
+                placeholder="Identifiant mariages.net"
+              />
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="card section">
+        <h3 class="section__title">Suivi</h3>
+        <div class="grid">
+          <div class="field">
+            <label>Date</label>
+            <input class="input" [(ngModel)]="data.date" placeholder="jj/mm/aaaa" />
+          </div>
+          <div class="field">
+            <label>Statut</label>
+            <select class="select" [(ngModel)]="data.statut">
+              @for (opt of statutOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+          @if (data.statut === Statut.Reserve) {
+            <label class="checkbox">
+              <input type="checkbox" [(ngModel)]="data.avis" />
+              <span>Avis client demandé</span>
+            </label>
+          }
+        </div>
+      </section>
+
+      @if (!isPerso) {
+        <section class="card section">
+          <h3 class="section__title">Essai</h3>
+          <div class="grid">
+            <div class="field">
+              <label>Date</label>
+              <input
+                class="input"
+                maxlength="10"
+                [(ngModel)]="data.essai.date"
+                (input)="data.essai.date = maskDate(data.essai.date)"
+                placeholder="jj/mm/aaaa"
+              />
+            </div>
+            <div class="field">
+              <label>Heure</label>
+              <input class="input" [(ngModel)]="data.essai.heure" placeholder="Heure" />
+            </div>
+            <div class="field">
+              <label>Lieu</label>
+              <input class="input" [(ngModel)]="data.essai.lieu" placeholder="Lieu" />
+            </div>
+          </div>
+        </section>
+
+        <section class="card section">
+          <h3 class="section__title">Lieu du mariage</h3>
+          <div class="grid">
+            <div class="field field--full">
+              <label>Domaine référencé</label>
+              <select class="select" (change)="onDomainChange($event)">
+                <option [value]="-1">Choisir un domaine…</option>
+                @for (domaine of domaines(); track $index) {
+                  <option [value]="$index">{{ domaine.domaine }} — {{ domaine.codepostal }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label>Domaine</label>
+              <input class="input" [(ngModel)]="data.mariage.domaine" placeholder="Domaine" />
+            </div>
+            <div class="field">
+              <label>Heure de cérémonie</label>
+              <input class="input" [(ngModel)]="data.mariage.ceremonie" placeholder="ex. 15h30" />
+            </div>
+            <div class="field">
+              <label>Adresse</label>
+              <input class="input" [(ngModel)]="data.mariage.adresse" placeholder="Adresse" />
+            </div>
+            <div class="field">
+              <label>Code postal &amp; ville</label>
+              <input
+                class="input"
+                [(ngModel)]="data.mariage.codepostal"
+                placeholder="Code postal & ville"
+              />
+            </div>
+          </div>
+        </section>
+      }
+    </div>
+  } @else {
+    <section class="card section">
+      <h3 class="section__title">Fiche essai</h3>
+      <dl class="readonly">
+        <div>
+          <dt>Nom</dt>
+          <dd>{{ data.client.nom || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Téléphone</dt>
+          <dd>{{ data.client.tel || '—' }}</dd>
+        </div>
+        <div>
+          <dt>E-mail</dt>
+          <dd>{{ data.client.mail || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Adresse</dt>
+          <dd>{{ data.client.adresse || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Code postal &amp; ville</dt>
+          <dd>{{ data.client.codepostal || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Essai</dt>
+          <dd>{{ data.essai.date }} {{ data.essai.heure }} {{ data.essai.lieu }}</dd>
+        </div>
+        <div>
+          <dt>Domaine</dt>
+          <dd>{{ data.mariage.domaine || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Cérémonie</dt>
+          <dd>{{ data.mariage.ceremonie || '—' }}</dd>
+        </div>
+      </dl>
+    </section>
+  }
+
+  <footer class="fiche__actions">
+    @if (!isEssai) {
+      <button class="btn btn--primary" (click)="saved.emit()">Enregistrer</button>
+      <button class="btn btn--ghost" (click)="eventAdded.emit()">Ajouter un événement</button>
+      <button class="btn btn--ghost" (click)="closedEvent.emit()">Clôturer</button>
+      @if (data.statut === Statut.Demande) {
+        <button class="btn btn--subtle" (click)="relanced.emit()">Relance</button>
+      }
+      @if (data.id !== undefined) {
+        <button class="btn btn--danger" (click)="removed.emit()">Supprimer</button>
+      }
+    } @else {
+      <button class="btn btn--primary" (click)="wentToWedding.emit()">Aller au mariage</button>
+    }
+  </footer>
+
+  <p class="todo muted">Devis, factures, planning et renseignements arriveront à l'étape 3.</p>
+</div>

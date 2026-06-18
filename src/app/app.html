@@ -1,37 +1,74 @@
 @if (!authenticated()) {
   <div class="gate">
-    <img src="logo.png" alt="Cloé Chaudron Beauty" class="gate__logo" />
-    <form class="gate__form" (ngSubmit)="unlock()">
-      <input
-        type="password"
-        name="passphrase"
-        [(ngModel)]="passphrase"
-        placeholder="Mot de passe…"
-        autocomplete="current-password"
-      />
-      <button type="submit">Valider</button>
-    </form>
+    <div class="gate__card card">
+      <img src="logo.png" alt="Cloé Chaudron Beauty" class="gate__logo" />
+      <h1>IntraCCB</h1>
+      <form class="gate__form" (ngSubmit)="unlock()">
+        <input
+          class="input"
+          type="password"
+          name="passphrase"
+          [(ngModel)]="passphrase"
+          placeholder="Mot de passe"
+          autocomplete="current-password"
+        />
+        <button class="btn btn--primary btn--block" type="submit">Entrer</button>
+      </form>
+    </div>
   </div>
 } @else {
-  <main class="shell">
-    <header class="shell__header">
-      <img src="logo.png" alt="Cloé Chaudron Beauty" class="shell__logo" />
-      <h1>IntraCCB</h1>
-    </header>
+  <header class="appbar">
+    <img src="logo.png" alt="" class="appbar__logo" />
+    <span class="appbar__title">IntraCCB</span>
+  </header>
 
-    @if (loading()) {
-      <p class="shell__status">Chargement du planning…</p>
-    } @else if (error()) {
-      <p class="shell__status shell__status--error">{{ error() }}</p>
-    } @else if (loaded()) {
-      <p class="shell__status">
-        Fondations en place — <span class="glow">{{ count() }}</span> journées chargées.
-      </p>
+  <main class="page">
+    @if (selected(); as journee) {
+      <app-journee-detail
+        [journee]="journee"
+        [domaines]="domaines()"
+        [sameDayCount]="sameDayCount()"
+        (closed)="closeFiche()"
+        (saved)="saveFiche()"
+        (removed)="removeFiche()"
+        (closedEvent)="cloturerFiche()"
+        (eventAdded)="addEvent()"
+        (relanced)="relance()"
+        (wentToWedding)="goToWedding()"
+        (dayChanged)="changeDay($event)"
+        (eventChanged)="changeEvent($event)"
+      />
+    } @else {
+      @if (loading()) {
+        <p class="page__status muted">Chargement du planning…</p>
+      } @else if (error()) {
+        <p class="page__status page__status--error">{{ error() }}</p>
+      }
+
+      <app-calendar (daySelected)="onDaySelected($event)" />
+
+      @if (upcoming(); as next) {
+        <button class="next card" (click)="openUpcoming()">
+          <span class="next__label muted">Prochain événement</span>
+          <span class="next__main">
+            <span class="chip" [class]="statutUi[next.statut].cssClass">
+              <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
+            </span>
+            <strong>{{ next.client.nom || '—' }}</strong>
+          </span>
+          <span class="next__date">{{ next.date | frenchDate }}</span>
+        </button>
+      }
+
+      <div class="legend">
+        @for (statut of legendStatuts; track statut) {
+          <span class="chip" [class]="statutUi[statut].cssClass">
+            <span class="chip__dot"></span>{{ statutUi[statut].label }}
+          </span>
+        }
+        <span class="legend__mark legend__mark--essai">Manque essai</span>
+        <span class="legend__mark legend__mark--planning">Manque planning</span>
+      </div>
     }
-
-    <p class="shell__hint">
-      Architecture initialisée. Les fonctionnalités (calendrier, devis, factures, planning, tableau
-      de bord) seront ajoutées aux étapes suivantes.
-    </p>
   </main>
 }

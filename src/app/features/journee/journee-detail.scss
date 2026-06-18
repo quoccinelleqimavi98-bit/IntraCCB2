@@ -1,0 +1,147 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.fiche {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: fade-in 0.25s ease both;
+}
+
+.fiche__head {
+  @include flex-between;
+  gap: var(--space-3);
+}
+
+.fiche__spacer {
+  width: 84px;
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.fiche__title {
+  @include flex-center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.fiche__day {
+  @include flex-column(6px);
+  align-items: center;
+  min-width: 0;
+
+  h2 {
+    font-size: var(--fs-lg);
+    color: var(--brand-deep);
+    text-align: center;
+    @include truncate;
+    max-width: 60vw;
+
+    @include mobile {
+      font-size: var(--fs-md);
+      max-width: 72vw;
+    }
+  }
+}
+
+.fiche__events {
+  @include flex-center;
+  gap: var(--space-3);
+}
+
+.fiche__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  padding: var(--space-5);
+
+  @include mobile {
+    padding: var(--space-4);
+  }
+}
+
+.section__title {
+  font-size: var(--fs-md);
+  color: var(--brand-strong);
+  margin-bottom: var(--space-4);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.checkbox {
+  @include flex(flex-start, center, var(--space-2));
+  cursor: pointer;
+  user-select: none;
+  align-self: center;
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand);
+    cursor: pointer;
+  }
+}
+
+// Vue lecture seule (essai)
+.readonly {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3) var(--space-5);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+
+  div {
+    @include flex-column(2px);
+  }
+
+  dt {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 500;
+  }
+}
+
+.fiche__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  padding-top: var(--space-2);
+}
+
+.todo {
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-style: italic;
+}

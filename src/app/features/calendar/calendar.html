@@ -1,0 +1,73 @@
+<div class="cal card">
+  <header class="cal__head">
+    <button class="icon-btn" (click)="prevMonth()" aria-label="Mois précédent">‹</button>
+    <h2 class="cal__month">{{ monthLabel() }}</h2>
+    <button class="icon-btn" (click)="nextMonth()" aria-label="Mois suivant">›</button>
+  </header>
+
+  <div class="cal__tools">
+    <input
+      class="input"
+      type="search"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      placeholder="Rechercher une mariée, un lieu…"
+    />
+    <button class="btn btn--subtle cal__today" (click)="goToday()">Aujourd'hui</button>
+  </div>
+
+  @if (search()) {
+    <div class="results">
+      @for (result of results(); track result.journee.date + '-' + result.journee.client.nom) {
+        <button class="results__item" (click)="select(result.journee.date)">
+          <span class="results__info">
+            <span class="results__date">{{ result.journee.date | frenchDate }}</span>
+            <span class="results__name">{{ result.journee.client.nom || '—' }}</span>
+          </span>
+          <span class="chip" [class]="result.statutClass">
+            <span class="chip__dot"></span>{{ result.statutLabel }}
+          </span>
+        </button>
+      } @empty {
+        <p class="results__empty muted">Aucun résultat pour « {{ search() }} ».</p>
+      }
+    </div>
+  } @else {
+    <div class="cal__weekdays">
+      @for (day of weekDays; track $index) {
+        <span>{{ day }}</span>
+      }
+    </div>
+
+    @for (key of [gridKey()]; track key) {
+      <div class="cal__grid">
+        @for (blank of cells().blanks; track $index) {
+          <span class="cell cell--blank"></span>
+        }
+        @for (cell of cells().days; track cell.date) {
+          <button
+            class="cell"
+            [class]="cell.statutClass"
+            [class.cell--busy]="cell.count > 0"
+            [class.cell--today]="cell.isToday"
+            [class.cell--past]="cell.isPast"
+            [class.cell--missing-essai]="cell.missingEssai"
+            [class.cell--missing-planning]="cell.missingPlanning"
+            (click)="select(cell.date)"
+          >
+            <span class="cell__day">{{ cell.day }}</span>
+            @if (cell.count > 0) {
+              <span class="cell__dot dot"></span>
+            }
+            @if (cell.name) {
+              <span class="cell__name">{{ cell.name }}</span>
+            }
+            @if (cell.count > 1) {
+              <span class="cell__count">{{ cell.count }}</span>
+            }
+          </button>
+        }
+      </div>
+    }
+  }
+</div>

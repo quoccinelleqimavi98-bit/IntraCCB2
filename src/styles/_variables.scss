@@ -1,34 +1,13 @@
 // ---------------------------------------------------------------------------
-// Palette & design tokens — identité visuelle Cloé Chaudron Beauty
-// Reprise fidèle de l'app d'origine, centralisée ici comme source unique.
-// Exposée en variables CSS (thème runtime) + variables SCSS (compile-time).
+// Design tokens — source unique de la charte (couleurs, espacements, rayons,
+// ombres, typographie, mouvement). La teinte de marque (mauve) est conservée ;
+// les couleurs de statut sont harmonisées autour de cette charte.
 // ---------------------------------------------------------------------------
 
-// Teinte de marque (mauve)
-$principale: #aa82ba;
-$fond: #aa82ba38;
-$scroll: #87528e3b;
-$required: #87528e;
-$gris-shadow: #505050;
-
-// Dégradé de la teinte principale (clair -> foncé)
-$color1: rgb(236, 228, 240);
-$color2: rgb(232, 218, 236);
-$color3: rgb(220, 204, 228);
-$color4: rgb(176, 138, 192);
-$color5: rgb(135, 82, 142);
-$color0: #30173d;
-
-// Couleurs de statut (calendrier)
-$today: #964a4a;
-$autre: #999267;
-$essai: #947d53;
-$demande: #996c94;
-$reserve: #496f9b;
-$over: #555555;
-$perso: #6c8b65;
-
-// Police
+// Variables SCSS utiles à la compilation (mixins, media queries)
+$breakpoint-sm: 640px;
+$breakpoint-md: 900px;
+$breakpoint-lg: 1200px;
 $font-family:
   'Montserrat',
   system-ui,
@@ -36,29 +15,68 @@ $font-family:
   'Segoe UI',
   sans-serif;
 
-// Points de rupture
-$breakpoint-mobile: 768px;
-
-// Exposition en variables CSS pour le thème runtime (classes .demande, .reserve…)
 :root {
-  --fond: #{$fond};
-  --principale: #{$principale};
-  --scroll: #{$scroll};
-  --gris-shadow: #{$gris-shadow};
-  --required: #{$required};
+  // --- Marque (mauve) ---
+  --brand: #aa82ba;
+  --brand-strong: #87528e;
+  --brand-deep: #30173d;
+  --brand-soft: #ece4f0;
+  --brand-tint: #aa82ba24;
 
-  --color1: #{$color1};
-  --color2: #{$color2};
-  --color3: #{$color3};
-  --color4: #{$color4};
-  --color5: #{$color5};
-  --color0: #{$color0};
+  // --- Surfaces & texte ---
+  --bg: #f5f1f8;
+  --surface: #ffffff;
+  --surface-2: #faf7fc;
+  --text: #2c2431;
+  --text-muted: #7c7184;
+  --border: #e8dfee;
+  --border-strong: #d8cbe0;
 
-  --today: #{$today};
-  --autre: #{$autre};
-  --essai: #{$essai};
-  --demande: #{$demande};
-  --reserve: #{$reserve};
-  --over: #{$over};
-  --perso: #{$perso};
+  // --- Feedback ---
+  --danger: #b3261e;
+  --danger-soft: #fbeceb;
+  --success: #3f7d52;
+  --warning: #b0822f;
+
+  // --- Statuts (harmonisés avec la charte) ---
+  --statut-reserve: #5b7fb0;
+  --statut-demande: #a96fa3;
+  --statut-essai: #b0894e;
+  --statut-autre: #8f9a5e;
+  --statut-perso: #6c8b65;
+  --statut-over: #8c8c8c;
+  --statut-today: #b25b5b;
+
+  // --- Espacements (base 4px) ---
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  // --- Rayons ---
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 999px;
+
+  // --- Ombres (douces) ---
+  --shadow-sm: 0 1px 2px rgba(48, 23, 61, 0.08), 0 1px 3px rgba(48, 23, 61, 0.05);
+  --shadow-md: 0 6px 16px rgba(48, 23, 61, 0.1);
+  --shadow-lg: 0 16px 40px rgba(48, 23, 61, 0.16);
+
+  // --- Typographie ---
+  --font: #{$font-family};
+  --fs-xs: 0.78rem;
+  --fs-sm: 0.88rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2rem;
+
+  // --- Mouvement ---
+  --transition: 160ms ease;
+  --transition-slow: 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -1,6 +1,8 @@
 // Feuille de styles globale — point d'entrée.
-// Les partials (_variables, _mixins) sont importables dans les composants via
+// Les partials (_variables, _mixins) restent importables dans les composants via
 // `@use 'variables' as *;` grâce à stylePreprocessorOptions.includePaths.
 
 @use 'variables';
 @use 'base';
+@use 'statut';
+@use 'components';

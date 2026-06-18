@@ -1,70 +1,154 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 
+// --- Verrou d'accès --------------------------------------------------------
+
 .gate {
-  @include flex-column(24px);
-  align-items: center;
-  justify-content: center;
   min-height: 100vh;
+  @include flex-center;
+  padding: var(--space-4);
+}
 
-  &__logo {
-    width: 140px;
-    height: auto;
-  }
+.gate__card {
+  width: min(380px, 100%);
+  padding: var(--space-6);
+  @include flex-column(var(--space-4));
+  align-items: center;
+  text-align: center;
+  animation: pop-in 0.3s ease both;
 
-  &__form {
-    @include flex-center;
-    gap: 8px;
-
-    input {
-      padding: 8px 12px;
-      border: 1px solid var(--color4);
-      border-radius: 6px;
-      font-size: 1rem;
-    }
-
-    button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      background-color: var(--principale);
-      color: white;
-      cursor: pointer;
-    }
+  h1 {
+    color: var(--brand-deep);
   }
 }
 
-.shell {
-  @include flex-column(16px);
-  align-items: center;
-  padding: 32px 16px;
+.gate__logo {
+  width: 92px;
+  height: auto;
+}
+
+.gate__form {
+  width: 100%;
+  @include flex-column(var(--space-3));
+}
+
+// --- Barre d'application ---------------------------------------------------
+
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  @include flex(flex-start, center, var(--space-3));
+  height: 60px;
+  padding: 0 var(--space-5);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+
+  @include mobile {
+    padding: 0 var(--space-4);
+  }
+}
+
+.appbar__logo {
+  width: 34px;
+  height: auto;
+}
+
+.appbar__title {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--brand-deep);
+}
+
+// --- Page ------------------------------------------------------------------
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5);
+  @include flex-column(var(--space-5));
+
+  @include mobile {
+    padding: var(--space-3);
+    gap: var(--space-4);
+  }
+}
+
+.page__status {
   text-align: center;
+  padding: var(--space-3);
 
-  &__header {
-    @include flex-center;
-    gap: 12px;
+  &--error {
+    color: var(--danger);
+  }
+}
+
+// --- Prochain événement ----------------------------------------------------
+
+.next {
+  @include flex-column(4px);
+  align-items: flex-start;
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+  animation: fade-in 0.25s ease both;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--brand);
   }
 
-  &__logo {
-    width: 56px;
-    height: auto;
+  &__label {
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
   }
 
-  h1 {
-    color: var(--color5);
-    font-weight: 700;
-  }
+  &__main {
+    @include flex(flex-start, center, var(--space-3));
+    flex-wrap: wrap;
 
-  &__status {
-    font-size: 1.05rem;
-
-    &--error {
-      color: $today;
+    strong {
+      font-size: var(--fs-lg);
     }
   }
 
-  &__hint {
-    max-width: 520px;
-    color: var(--gris-shadow);
+  &__date {
+    text-transform: capitalize;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+}
+
+// --- Légende ---------------------------------------------------------------
+
+.legend {
+  @include flex-center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2);
+}
+
+.legend__mark {
+  @include flex(flex-start, center, 6px);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+
+  &::before {
+    content: '';
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+
+  &--essai::before {
+    background: var(--warning);
+  }
+  &--planning::before {
+    background: var(--danger);
   }
 }

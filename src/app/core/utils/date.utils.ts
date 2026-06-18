@@ -72,3 +72,25 @@ export function yearOfFr(value: string): number {
 export function monthOfFr(value: string): number {
   return parseInt(value.split('/')[1] ?? '', 10);
 }
+
+/** Met en forme une saisie au fil de l'eau vers « jj/mm/aaaa ». */
+export function maskFrDateInput(value: string): string {
+  let v = value.replace(/\D/g, '');
+  if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+  if (v.length > 5) v = `${v.slice(0, 5)}/${v.slice(5)}`;
+  return v;
+}
+
+/** Formate « jj/mm/aaaa » en toutes lettres capitalisées (« Jeudi 12 Juin 2026 »). */
+export function frenchLongDate(value: string | undefined | null): string {
+  if (!value) return '';
+  const date = parseFrDate(value);
+  if (!date) return value;
+  const formatted = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+  return formatted.replace(/(^|\s)\p{L}/gu, (char) => char.toUpperCase());
+}
