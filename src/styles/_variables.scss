@@ -1,0 +1,64 @@
+// ---------------------------------------------------------------------------
+// Palette & design tokens — identité visuelle Cloé Chaudron Beauty
+// Reprise fidèle de l'app d'origine, centralisée ici comme source unique.
+// Exposée en variables CSS (thème runtime) + variables SCSS (compile-time).
+// ---------------------------------------------------------------------------
+
+// Teinte de marque (mauve)
+$principale: #aa82ba;
+$fond: #aa82ba38;
+$scroll: #87528e3b;
+$required: #87528e;
+$gris-shadow: #505050;
+
+// Dégradé de la teinte principale (clair -> foncé)
+$color1: rgb(236, 228, 240);
+$color2: rgb(232, 218, 236);
+$color3: rgb(220, 204, 228);
+$color4: rgb(176, 138, 192);
+$color5: rgb(135, 82, 142);
+$color0: #30173d;
+
+// Couleurs de statut (calendrier)
+$today: #964a4a;
+$autre: #999267;
+$essai: #947d53;
+$demande: #996c94;
+$reserve: #496f9b;
+$over: #555555;
+$perso: #6c8b65;
+
+// Police
+$font-family:
+  'Montserrat',
+  system-ui,
+  -apple-system,
+  'Segoe UI',
+  sans-serif;
+
+// Points de rupture
+$breakpoint-mobile: 768px;
+
+// Exposition en variables CSS pour le thème runtime (classes .demande, .reserve…)
+:root {
+  --fond: #{$fond};
+  --principale: #{$principale};
+  --scroll: #{$scroll};
+  --gris-shadow: #{$gris-shadow};
+  --required: #{$required};
+
+  --color1: #{$color1};
+  --color2: #{$color2};
+  --color3: #{$color3};
+  --color4: #{$color4};
+  --color5: #{$color5};
+  --color0: #{$color0};
+
+  --today: #{$today};
+  --autre: #{$autre};
+  --essai: #{$essai};
+  --demande: #{$demande};
+  --reserve: #{$reserve};
+  --over: #{$over};
+  --perso: #{$perso};
+}

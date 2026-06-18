@@ -1,0 +1,42 @@
+// ---------------------------------------------------------------------------
+// Mixins & utilitaires de mise en page réutilisables.
+// ---------------------------------------------------------------------------
+
+@mixin flex($justify: flex-start, $align: center, $gap: 0) {
+  display: flex;
+  justify-content: $justify;
+  align-items: $align;
+  @if $gap != 0 {
+    gap: $gap;
+  }
+}
+
+@mixin flex-center {
+  @include flex(center, center);
+}
+
+@mixin flex-between {
+  @include flex(space-between, center);
+}
+
+@mixin flex-column($gap: 0) {
+  display: flex;
+  flex-direction: column;
+  @if $gap != 0 {
+    gap: $gap;
+  }
+}
+
+// Coupe le texte trop long avec des points de suspension.
+@mixin truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Cible les écrans étroits (mobile / portrait).
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
+  }
+}

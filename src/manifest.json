@@ -1,0 +1,23 @@
+{
+  "name": "IntraCCB",
+  "short_name": "IntraCCB",
+  "description": "Outil interne de gestion Cloé Chaudron Beauty.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#aa82ba38",
+  "theme_color": "#aa82ba",
+  "icons": [
+    {
+      "src": "logoapp192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logoapp512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

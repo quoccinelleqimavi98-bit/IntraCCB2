@@ -1,0 +1,37 @@
+@if (!authenticated()) {
+  <div class="gate">
+    <img src="logo.png" alt="Cloé Chaudron Beauty" class="gate__logo" />
+    <form class="gate__form" (ngSubmit)="unlock()">
+      <input
+        type="password"
+        name="passphrase"
+        [(ngModel)]="passphrase"
+        placeholder="Mot de passe…"
+        autocomplete="current-password"
+      />
+      <button type="submit">Valider</button>
+    </form>
+  </div>
+} @else {
+  <main class="shell">
+    <header class="shell__header">
+      <img src="logo.png" alt="Cloé Chaudron Beauty" class="shell__logo" />
+      <h1>IntraCCB</h1>
+    </header>
+
+    @if (loading()) {
+      <p class="shell__status">Chargement du planning…</p>
+    } @else if (error()) {
+      <p class="shell__status shell__status--error">{{ error() }}</p>
+    } @else if (loaded()) {
+      <p class="shell__status">
+        Fondations en place — <span class="glow">{{ count() }}</span> journées chargées.
+      </p>
+    }
+
+    <p class="shell__hint">
+      Architecture initialisée. Les fonctionnalités (calendrier, devis, factures, planning, tableau
+      de bord) seront ajoutées aux étapes suivantes.
+    </p>
+  </main>
+}
