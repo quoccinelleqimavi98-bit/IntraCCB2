@@ -23,7 +23,19 @@
   </header>
 
   <main class="page">
-    @if (selected(); as journee) {
+    @if (documentRequest(); as doc) {
+      <app-document-editor
+        [journee]="selected()!"
+        [mode]="doc.mode"
+        [factureIndex]="doc.factureIndex"
+        [catalog]="catalog()"
+        [nextDevis]="nextDevis()"
+        [nextFacture]="nextFacture()"
+        (saved)="onDocumentSaved()"
+        (closed)="onDocumentClosed()"
+        (removed)="onDocumentRemoved(doc.factureIndex)"
+      />
+    } @else if (selected(); as journee) {
       <app-journee-detail
         [journee]="journee"
         [domaines]="domaines()"
@@ -37,6 +49,7 @@
         (wentToWedding)="goToWedding()"
         (dayChanged)="changeDay($event)"
         (eventChanged)="changeEvent($event)"
+        (openDocument)="openDocument($event)"
       />
     } @else {
       @if (loading()) {

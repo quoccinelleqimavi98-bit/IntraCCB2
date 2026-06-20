@@ -132,6 +132,89 @@
   }
 }
 
+// Documents (devis / factures / étape)
+.docs {
+  @include flex-column(var(--space-3));
+}
+
+.docs__row {
+  @include flex-between;
+  gap: var(--space-3);
+
+  &--top {
+    align-items: flex-start;
+  }
+}
+
+.docs__label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.docs__factures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+// Récapitulatif chiffré
+.resume__head,
+.resume__row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 52px 76px;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 4px 0;
+
+  span:last-child {
+    text-align: right;
+  }
+}
+
+.resume__head {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.resume__row {
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.resume__name {
+  @include truncate;
+}
+
+.resume__totals {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-4);
+
+  > div {
+    @include flex-between;
+    gap: var(--space-3);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  span {
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+  strong {
+    color: var(--brand-strong);
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fiche__actions {
   display: flex;
   flex-wrap: wrap;

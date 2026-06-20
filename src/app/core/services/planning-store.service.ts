@@ -1,8 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 
-import { Domaine, Etape, Journee, Statut } from '../models';
-import { compareFrDates, isPastFr, parseFrDate } from '../utils/date.utils';
+import { CatalogItem, Domaine, Etape, Journee, Statut } from '../models';
+import { compareFrDates, isPastFr, parseFrDate, yearOfFr } from '../utils/date.utils';
 import { ApiService } from './api.service';
 
 /**
@@ -18,6 +18,7 @@ export class PlanningStore {
 
   private readonly _journees = signal<Journee[]>([]);
   private readonly _domaines = signal<Domaine[]>([]);
+  private readonly _catalog = signal<CatalogItem[]>([]);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _loaded = signal(false);
@@ -26,6 +27,8 @@ export class PlanningStore {
   readonly journees = this._journees.asReadonly();
   /** Domaines de réception référencés. */
   readonly domaines = this._domaines.asReadonly();
+  /** Catalogue de prestations de base. */
+  readonly catalog = this._catalog.asReadonly();
   /** Un chargement réseau est en cours. */
   readonly loading = this._loading.asReadonly();
   /** Message d'erreur du dernier chargement, le cas échéant. */
@@ -78,6 +81,28 @@ export class PlanningStore {
     return this.calendarEntries().filter((j) => j.date === date);
   }
 
+  /** Prochains numéros de devis et de facture pour l'année en cours. */
+  nextNumbers(): { devis: number; facture: number } {
+    const year = new Date().getFullYear();
+    const journees = this._journees();
+
+    const devisNums = journees
+      .filter((j) => j.devis?.creation && yearOfFr(j.devis.creation) === year)
+      .map((j) => Number(j.devis?.numero))
+      .filter((n) => !Number.isNaN(n));
+
+    const factureNums = journees
+      .flatMap((j) => j.factures)
+      .filter((f) => f.creation && yearOfFr(f.creation) === year)
+      .map((f) => Number(f.numero))
+      .filter((n) => !Number.isNaN(n));
+
+    return {
+      devis: (devisNums.length ? Math.max(...devisNums) : 0) + 1,
+      facture: (factureNums.length ? Math.max(...factureNums) : 0) + 1,
+    };
+  }
+
   /** Charge (ou recharge) les journées depuis l'API. */
   load(): void {
     this._loading.set(true);
@@ -103,6 +128,15 @@ export class PlanningStore {
     this.api.getDomaines().subscribe({
       next: (domaines) => this._domaines.set(domaines),
       error: (err) => console.error('[PlanningStore] domaines', err),
+    });
+  }
+
+  /** Charge le catalogue de prestations. */
+  loadCatalog(): void {
+    if (this._catalog().length > 0) return;
+    this.api.getCatalog().subscribe({
+      next: (catalog) => this._catalog.set(catalog),
+      error: (err) => console.error('[PlanningStore] catalogue', err),
     });
   }
 

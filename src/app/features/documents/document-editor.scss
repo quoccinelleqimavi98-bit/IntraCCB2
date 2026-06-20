@@ -1,0 +1,184 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.editor {
+  max-width: 1200px;
+  margin: 0 auto;
+  @include flex-column(var(--space-4));
+  animation: fade-in 0.25s ease both;
+}
+
+.editor__head {
+  @include flex-between;
+  gap: var(--space-3);
+
+  h2 {
+    font-size: var(--fs-lg);
+    color: var(--brand-deep);
+    @include truncate;
+  }
+}
+
+.editor__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+
+  @include tablet-down {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor__form {
+  @include flex-column(var(--space-4));
+  min-width: 0;
+}
+
+.section {
+  padding: var(--space-5);
+
+  @include mobile {
+    padding: var(--space-4);
+  }
+}
+
+.section__head {
+  @include flex-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+
+  .section__title {
+    margin-bottom: 0;
+  }
+}
+
+.section__title {
+  font-size: var(--fs-md);
+  color: var(--brand-strong);
+  margin-bottom: var(--space-4);
+}
+
+.section__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prestas {
+  @include flex-column(var(--space-2));
+}
+
+.presta-titre {
+  font-weight: 700;
+  color: var(--brand-strong);
+  margin-top: var(--space-2);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.presta-row {
+  display: grid;
+  grid-template-columns: auto 1fr 72px 56px 64px;
+  gap: var(--space-2);
+  align-items: center;
+
+  @include mobile {
+    grid-template-columns: auto 1fr 56px;
+
+    .presta-nom {
+      grid-column: 1 / -1;
+      order: -1;
+    }
+    .presta-total {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.qte {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qte-input {
+  width: 46px;
+  padding: 0 4px;
+  text-align: center;
+}
+
+.presta-prix,
+.presta-reduc {
+  text-align: center;
+}
+
+.presta-total {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: right;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.add-presta {
+  margin-top: var(--space-3);
+}
+
+.checkbox {
+  @include flex(flex-start, center, var(--space-2));
+  cursor: pointer;
+  align-self: center;
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand);
+  }
+}
+
+.editor__total {
+  text-align: right;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.editor__preview {
+  position: sticky;
+  top: 76px;
+
+  @include tablet-down {
+    position: static;
+  }
+}
+
+.preview-scroll {
+  overflow: auto;
+  max-width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #eceaef;
+  box-shadow: var(--shadow-sm);
+}
+
+.editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}

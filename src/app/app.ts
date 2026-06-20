@@ -10,6 +10,8 @@ import { frenchLongDate, parseFrDate } from './core/utils/date.utils';
 import { deepClone } from './core/utils/object.utils';
 import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relance.utils';
 import { Calendar } from './features/calendar/calendar';
+import { DocumentEditor } from './features/documents/document-editor';
+import { DocumentRequest } from './features/documents/document.types';
 import { JourneeDetail } from './features/journee/journee-detail';
 import { FrenchDatePipe } from './shared/pipes/french-date.pipe';
 import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
@@ -21,7 +23,7 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
  */
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, Calendar, JourneeDetail, FrenchDatePipe],
+  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, FrenchDatePipe],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +37,7 @@ export class App {
   protected readonly loading = this.store.loading;
   protected readonly error = this.store.error;
   protected readonly domaines = this.store.domaines;
+  protected readonly catalog = this.store.catalog;
   protected readonly upcoming = this.store.upcoming;
 
   protected readonly legendStatuts = LEGEND_STATUTS;
@@ -42,6 +45,11 @@ export class App {
 
   /** Journée en cours d'édition (copie de travail), ou null sur le calendrier. */
   protected readonly selected = signal<Journee | null>(null);
+
+  /** Document (devis/facture) ouvert par-dessus la fiche, ou null. */
+  protected readonly documentRequest = signal<DocumentRequest | null>(null);
+  protected readonly nextDevis = signal(1);
+  protected readonly nextFacture = signal(1);
 
   /** Nombre d'événements le même jour que la sélection. */
   protected readonly sameDayCount = computed(() => {
@@ -68,6 +76,32 @@ export class App {
   private init(): void {
     this.store.load();
     this.store.loadDomaines();
+    this.store.loadCatalog();
+  }
+
+  // --- Documents (devis / facture) ------------------------------------------
+
+  protected openDocument(request: DocumentRequest): void {
+    const numbers = this.store.nextNumbers();
+    this.nextDevis.set(numbers.devis);
+    this.nextFacture.set(numbers.facture);
+    this.documentRequest.set(request);
+  }
+
+  /** Le document a été appliqué à la copie de travail : retour à la fiche. */
+  protected onDocumentSaved(): void {
+    this.documentRequest.set(null);
+  }
+
+  protected onDocumentClosed(): void {
+    this.documentRequest.set(null);
+  }
+
+  /** Suppression d'une facture depuis l'éditeur. */
+  protected onDocumentRemoved(index: number): void {
+    const journee = this.selected();
+    if (journee && index >= 0) journee.factures.splice(index, 1);
+    this.documentRequest.set(null);
   }
 
   // --- Sélection / ouverture d'une journée ----------------------------------

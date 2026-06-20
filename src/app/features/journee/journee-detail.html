@@ -156,6 +156,80 @@
           </div>
         </section>
       }
+
+      <section class="card section">
+        <h3 class="section__title">Documents</h3>
+        <div class="docs">
+          <div class="docs__row">
+            <span class="docs__label">Devis</span>
+            <button class="btn btn--ghost btn--sm" (click)="openDevis()">
+              {{
+                hasDevis
+                  ? formatNum(data.devis?.numero) + '-' + data.devis?.annee
+                  : 'Créer un devis'
+              }}
+            </button>
+          </div>
+
+          @if (hasDevis) {
+            <div class="docs__row docs__row--top">
+              <span class="docs__label">Factures</span>
+              <div class="docs__factures">
+                @for (facture of data.factures; track $index) {
+                  <button class="btn btn--ghost btn--sm" (click)="openFacture($index)">
+                    {{ formatNum(facture.numero) }}-{{ facture.annee }} ·
+                    {{ money(factureSold(facture)) }}€
+                  </button>
+                }
+                <button class="btn btn--subtle btn--sm" (click)="openFacture(-1)">
+                  + Nouvelle facture
+                </button>
+              </div>
+            </div>
+          }
+
+          <div class="docs__row">
+            <span class="docs__label">Étape</span>
+            <button class="btn btn--ghost btn--sm" (click)="clickEtape()">
+              {{ etapeLabel() }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      @if (hasDevis) {
+        <section class="card section">
+          <h3 class="section__title">Récapitulatif</h3>
+          <div class="resume">
+            <div class="resume__head">
+              <span>Qté</span><span>Prestation</span><span>Réduc</span><span>Total</span>
+            </div>
+            @for (presta of devisPrestas; track $index) {
+              <div class="resume__row">
+                <span>{{ presta.qte }}</span>
+                <span class="resume__name">{{ presta.nom }}</span>
+                <span>{{ presta.reduc ? presta.reduc + '%' : '' }}</span>
+                <span>{{ lineLabel(presta) }}</span>
+              </div>
+            }
+          </div>
+          <div class="resume__totals">
+            <div>
+              <span>{{ data.factures.length === 0 ? 'Arrhes' : 'Payé' }}</span>
+              <strong>{{ money(data.factures.length === 0 ? arrhes() : paid()) }}€</strong>
+            </div>
+            <div>
+              <span>Total</span><strong>{{ money(total()) }}€</strong>
+            </div>
+            <div>
+              <span>Prestataires</span><strong>{{ money(providersPaid()) }}€</strong>
+            </div>
+            <div>
+              <span>Moi</span><strong>{{ money(mine()) }}€</strong>
+            </div>
+          </div>
+        </section>
+      }
     </div>
   } @else {
     <section class="card section">
@@ -213,5 +287,7 @@
     }
   </footer>
 
-  <p class="todo muted">Devis, factures, planning et renseignements arriveront à l'étape 3.</p>
+  @if (!isEssai && !isPerso) {
+    <p class="todo muted">Planning et renseignements : à venir (étape 4).</p>
+  }
 </div>

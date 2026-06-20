@@ -1,0 +1,249 @@
+<div class="cloecss">
+  <div id="htmlContent" class="noplanning">
+    <img src="logo.png" class="logo" alt="" />
+
+    <p class="rosebg">
+      @if (mode() === DocumentMode.Devis) {
+        {{ fr() ? 'DEVIS' : 'QUOTE' }}
+      } @else {
+        {{ fr() ? 'FACTURE' : 'INVOICE' }}
+      }
+    </p>
+
+    <p class="date">Date : {{ formatDate(values().date) }}</p>
+    <div class="ligne"></div>
+
+    <div class="content">
+      <p class="devis tinytext">
+        @if (mode() === DocumentMode.Devis) {
+          {{ fr() ? 'DEVIS N°' : 'QUOTE N°' }}
+        } @else {
+          {{ fr() ? 'FACTURE N°' : 'INVOICE N°' }}
+        }
+        {{ numero() }}
+      </p>
+
+      <div class="flex between">
+        <div class="cloe">
+          <p>{{ emetteur.nom }}</p>
+          <p>{{ emetteur.adresse }}</p>
+          <p>{{ emetteur.codepostal }}</p>
+          <p>{{ emetteur.tel }}</p>
+          <p class="nobold">{{ emetteur.mail }}</p>
+        </div>
+        <div class="cloe client">
+          <p>{{ client().nom }}</p>
+          <p>{{ client().adresse }}</p>
+          <p>{{ client().codepostal }}</p>
+          <p>{{ client().tel }}</p>
+          <p class="nobold">{{ client().mail }}</p>
+        </div>
+      </div>
+
+      <div class="table margtop">
+        <p>{{ fr() ? 'Quantité' : 'Quantity' }}</p>
+        <p>Description</p>
+        <p>{{ fr() ? 'Prix Unitaire' : 'Unit Price' }}</p>
+        <p>{{ fr() ? 'Reduction' : 'Discount' }}</p>
+        <p>Total</p>
+      </div>
+      <div class="fullligne"></div>
+
+      @for (presta of visiblePrestas(); track $index) {
+        <div class="table">
+          <p>{{ qteLabel(presta) }}</p>
+          <p class="textoverflow">{{ nameLabel(presta) }}</p>
+          <p>{{ prixLabel(presta) }}</p>
+          <p>{{ reducLabel(presta) }}</p>
+          @if (lineTotal(presta) > 0) {
+            <p>{{ money(lineTotal(presta)) }}€</p>
+          } @else {
+            <p class="green">Offert</p>
+          }
+        </div>
+      }
+      <div class="fullligne"></div>
+
+      @if (mode() === DocumentMode.Devis) {
+        <div class="flex">
+          <p class="tinytext echeance">
+            {{ fr() ? 'Échéance' : 'Due Date' }} : {{ values().echeance }}
+          </p>
+          <p class="bold">Total</p>
+          <p class="bold total">{{ money(total()) }}€</p>
+        </div>
+        <div class="flex minitxt">
+          <p>{{ fr() ? 'Prestation le' : 'Service' }} : {{ values().datePrestation }}</p>
+          <p class="tva">
+            {{
+              fr()
+                ? 'TVA Non Applicable - article 293 B du CGI'
+                : 'VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)'
+            }}
+          </p>
+        </div>
+
+        @if (arrhes() > 0) {
+          <p class="tinytext bold">
+            {{ fr() ? 'Montant acompte' : 'Deposit amount' }} : {{ money(arrhes()) }}€
+          </p>
+        }
+
+        @if (fr()) {
+          <div class="infos">
+            <p>Conditions contractuelles :</p>
+            <ul>
+              <li>
+                <strong>Réservation et acompte :</strong> confirmée exclusivement après signature du
+                devis, du contrat, et versement d'un acompte de 30 % du montant de la prestation
+                {{ modedevis() === 'Mariage' ? 'mariée' : '' }}. Cet acompte a valeur d'engagement
+                définitif et garantit la réservation de la date.
+              </li>
+              <li>
+                <strong>Solde :</strong> à régler au plus tard le jour
+                {{ modedevis() === 'Mariage' ? 'du mariage' : "de l'événement" }}. Tout défaut ou
+                retard de règlement suspend automatiquement l'exécution.
+              </li>
+              @if (modedevis() === 'Mariage') {
+                <li>
+                  <strong>Engagements :</strong> la prestataire garantit un service d'excellence,
+                  une disponibilité totale et une qualité irréprochable. La cliente s'engage à
+                  respecter les horaires, à notifier toute modification et à fournir des conditions
+                  optimales pour la bonne réalisation.
+                </li>
+              } @else {
+                <li>
+                  <strong>Engagements :</strong> toute modification du nombre de participants doit
+                  être communiquée au minimum 72h avant l'évènement. Le client s'engage à respecter
+                  les horaires.
+                </li>
+              }
+              <li>
+                <strong>Frais de déplacement :</strong> facturés 0,40 €/km, péages et parkings
+                inclus, à régler le jour du déplacement au plus tard.
+              </li>
+              <li>
+                <strong>Validité du devis :</strong> valable jusqu'à l'achèvement des prestations
+                prévues. Toute prestation supplémentaire devra faire l'objet d'un accord écrit et
+                sera intégrée à la facturation finale. Aucune suppression n'est acceptée.
+              </li>
+            </ul>
+          </div>
+        } @else {
+          <div class="infos">
+            <p>Contractual Conditions:</p>
+            <ul>
+              <li>
+                <strong>Reservation and Deposit:</strong> confirmed exclusively upon signature of
+                the quotation, the contract, and payment of a 30% deposit on the
+                {{ modedevis() === 'Mariage' ? 'bridal service' : 'service' }}. This deposit
+                constitutes a binding commitment and secures the reserved date.
+              </li>
+              <li>
+                <strong>Balance:</strong> to be settled no later than the
+                {{ modedevis() === 'Mariage' ? 'wedding day' : 'day of the event' }}. Any default or
+                delay in payment will automatically suspend performance of the service.
+              </li>
+              @if (modedevis() === 'Mariage') {
+                <li>
+                  <strong>Commitments:</strong> the provider guarantees excellence, full
+                  availability, and impeccable quality. The client undertakes to respect the
+                  schedule, notify any modification, and provide optimal conditions for smooth
+                  execution.
+                </li>
+              } @else {
+                <li>
+                  <strong>Commitments:</strong> any change in the number of participants must be
+                  communicated at least 72 hours before the event. The client undertakes to respect
+                  the agreed schedule.
+                </li>
+              }
+              <li>
+                <strong>Travel Expenses:</strong> charged at €0.40/km, including tolls and parking,
+                payable no later than the day of travel.
+              </li>
+              <li>
+                <strong>Validity of Quotation:</strong> valid until completion of the listed
+                services. Any additional service requires written approval and will be added to the
+                final invoice. No cancellation of items is accepted.
+              </li>
+            </ul>
+          </div>
+        }
+
+        <p class="signature">
+          {{
+            fr()
+              ? 'Pour accepter ce devis, apposez votre signature ici et renvoyez-le'
+              : 'To accept this quote, please sign here and return it'
+          }}
+          :
+        </p>
+      } @else {
+        <div class="flex">
+          <p class="tinytext echeance">
+            {{ fr() ? 'Prestation le' : 'Service' }} : {{ values().datePrestation }}
+          </p>
+          <p class="bold">Total</p>
+          <p class="bold total">{{ money(total()) }}€</p>
+        </div>
+        <div class="flex minitxt">
+          <p class="tva">
+            {{
+              fr()
+                ? 'TVA Non Applicable - article 293 B du CGI'
+                : 'VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)'
+            }}
+          </p>
+        </div>
+
+        <div class="resume">
+          <div class="flex between">
+            @if (values().acompte !== '') {
+              <p class="tinytext">
+                {{ fr() ? 'Déjà versé' : 'Already Paid' }} : {{ money(values().acompte) }}€
+              </p>
+            }
+            @if (values().acompte !== '' || values().solde !== '') {
+              <p class="tinytext bold rightalign">
+                {{ fr() ? 'Reste à payer' : 'Remaining balance' }} : {{ remaining() }}€
+              </p>
+            }
+            @if (acquittee()) {
+              <p class="tinytext bold rightalign2">
+                {{ fr() ? 'Facture acquittée le : ' : 'Invoice paid on : '
+                }}{{ formatDate(values().date) }}
+              </p>
+            }
+          </div>
+          @if (values().paiementPrestas !== 0 && values().paiementPrestas !== '') {
+            <p class="tinytext">
+              {{ fr() ? 'Paiement prestataires' : 'Payment to providers' }} :
+              {{ money(values().paiementPrestas) }}€
+            </p>
+          }
+          <p class="tinytext">
+            {{ fr() ? 'Mode de paiement' : 'Payment Method' }} : {{ values().modePaiement }}
+          </p>
+        </div>
+      }
+    </div>
+
+    <div class="bottom">
+      <p class="rosebg">&nbsp;</p>
+      <div class="flex">
+        <div class="iban">
+          <p>{{ fr() ? 'Coordonnées Bancaires' : 'Bank Details' }}</p>
+          <p>{{ fr() ? 'Nom' : 'Name' }} : {{ bank.nom }}</p>
+          <p>IBAN : {{ bank.iban }}</p>
+          <p>BIC : {{ bank.bic }}</p>
+          <p>SIRET : {{ bank.siret }}</p>
+        </div>
+        <div class="thank">
+          <p>THANK</p>
+          <p>YOU</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

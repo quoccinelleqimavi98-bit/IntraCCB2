@@ -33,7 +33,17 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "allowedCommonJsDependencies": ["sweetalert2"],
+            "allowedCommonJsDependencies": [
+              "sweetalert2",
+              "jspdf",
+              "html2canvas",
+              "dompurify",
+              "canvg",
+              "core-js",
+              "rgbcolor",
+              "raf",
+              "stackblur-canvas"
+            ],
             "assets": [
               {
                 "glob": "**/*",

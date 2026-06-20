@@ -1,0 +1,155 @@
+<div class="editor">
+  <header class="editor__head">
+    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+    <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
+    <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
+  </header>
+
+  <div class="editor__panes">
+    <div class="editor__form">
+      <section class="card section">
+        <h3 class="section__title">Informations</h3>
+        <div class="grid">
+          <div class="field">
+            <label>Date</label>
+            <input class="input" [(ngModel)]="values.date" placeholder="jj/mm/aaaa" />
+          </div>
+          <div class="field">
+            <label>Numéro</label>
+            <input class="input" [(ngModel)]="values.numero" />
+          </div>
+          <div class="field">
+            <label>Année</label>
+            <input class="input" [(ngModel)]="values.annee" />
+          </div>
+          @if (isDevis) {
+            <div class="field">
+              <label>Échéance</label>
+              <input class="input" [(ngModel)]="values.echeance" placeholder="jj/mm/aaaa" />
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="card section">
+        <div class="section__head">
+          <h3 class="section__title">Prestations</h3>
+          <div class="section__actions">
+            <button class="btn btn--ghost btn--sm" (click)="deleteAll()">Tout effacer</button>
+            @if (canAddDevisPrestas) {
+              <button class="btn btn--ghost btn--sm" (click)="addDevisPrestas()">
+                Reprendre le devis
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="prestas">
+          @for (presta of prestas; track $index) {
+            @if (presta.titre) {
+              <p class="presta-titre">{{ presta.nom }}</p>
+            } @else {
+              <div class="presta-row">
+                <div class="qte">
+                  <button
+                    class="icon-btn icon-btn--sm"
+                    (click)="removeQte(presta)"
+                    [disabled]="!canDecrement(presta)"
+                  >
+                    −
+                  </button>
+                  <input class="input qte-input" [(ngModel)]="presta.qte" />
+                  <button class="icon-btn icon-btn--sm" (click)="addQte(presta)">+</button>
+                </div>
+                <input
+                  class="input presta-nom"
+                  [(ngModel)]="presta.nom"
+                  placeholder="Désignation"
+                />
+                <input class="input presta-prix" [(ngModel)]="presta.prix" placeholder="Prix" />
+                <input class="input presta-reduc" [(ngModel)]="presta.reduc" placeholder="%" />
+                <span class="presta-total">{{ lineLabel(presta) }}</span>
+              </div>
+            }
+          }
+        </div>
+
+        <button class="btn btn--ghost btn--sm add-presta" (click)="addPresta()">
+          + Ajouter une ligne
+        </button>
+      </section>
+
+      @if (isDevis) {
+        <section class="card section">
+          <h3 class="section__title">Devis</h3>
+          <div class="grid">
+            <div class="field">
+              <label>Prestation le</label>
+              <input class="input" [(ngModel)]="values.datePrestation" placeholder="jj/mm/aaaa" />
+            </div>
+            <div class="field">
+              <label>Type</label>
+              <button class="btn btn--ghost" (click)="toggleModedevis()">{{ modedevis }}</button>
+            </div>
+          </div>
+        </section>
+      } @else {
+        <section class="card section">
+          <h3 class="section__title">Facture</h3>
+          <div class="grid">
+            <div class="field">
+              <label>Déjà versé</label>
+              <input class="input" [(ngModel)]="values.acompte" />
+            </div>
+            <div class="field">
+              <label>Solde</label>
+              <input class="input" [(ngModel)]="values.solde" />
+            </div>
+            <div class="field">
+              <label>Réellement versé</label>
+              <input class="input" [(ngModel)]="values.realsold" />
+            </div>
+            <div class="field">
+              <label>Mode de paiement</label>
+              <input class="input" [(ngModel)]="values.modePaiement" />
+            </div>
+            <div class="field">
+              <label>Paiement prestataires</label>
+              <input class="input" [(ngModel)]="values.paiementPrestas" />
+            </div>
+            <label class="checkbox">
+              <input type="checkbox" [(ngModel)]="acquittee" />
+              <span>Facture acquittée</span>
+            </label>
+          </div>
+        </section>
+      }
+
+      <div class="editor__total">
+        Total : <span class="glow">{{ money(total()) }}€</span>
+      </div>
+    </div>
+
+    <div class="editor__preview">
+      <div class="preview-scroll">
+        <app-document-pdf
+          [mode]="mode()"
+          [lang]="lang"
+          [prestas]="prestas"
+          [client]="journee().client"
+          [values]="values"
+          [modedevis]="modedevis"
+          [acquittee]="acquittee"
+        />
+      </div>
+    </div>
+  </div>
+
+  <footer class="editor__actions">
+    <button class="btn btn--primary" (click)="generatePdf()">Générer le PDF</button>
+    <button class="btn btn--ghost" (click)="save()">Enregistrer</button>
+    @if (!isDevis && factureIndex() !== -1) {
+      <button class="btn btn--danger" (click)="removed.emit()">Supprimer</button>
+    }
+  </footer>
+</div>

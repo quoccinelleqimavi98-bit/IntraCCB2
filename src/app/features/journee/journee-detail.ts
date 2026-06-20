@@ -1,18 +1,21 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { Domaine, Journee, Statut } from '../../core/models';
+import { DocumentMode, Domaine, Etape, Facture, Journee, Presta, Statut } from '../../core/models';
+import { PricingService } from '../../core/services/pricing.service';
 import { maskFrDateInput } from '../../core/utils/date.utils';
+import { formatAmount } from '../../core/utils/money.utils';
 import { statutClass, statutLabel } from '../../shared/statut-ui';
 import { FrenchDatePipe } from '../../shared/pipes/french-date.pipe';
+import { DocumentRequest } from '../documents/document.types';
 
 /**
  * Fiche d'une journée : consultation et édition des informations (client,
- * statut, essai, mariage) et actions associées.
+ * statut, essai, mariage), accès aux documents (devis / factures) et
+ * récapitulatif chiffré.
  *
  * Le composant édite une **copie de travail** fournie par le parent (mutée via
  * `ngModel`) et délègue toutes les actions au parent via des sorties.
- * Devis / factures / planning / renseignements seront ajoutés à l'étape 3.
  */
 @Component({
   selector: 'app-journee-detail',
@@ -22,6 +25,8 @@ import { FrenchDatePipe } from '../../shared/pipes/french-date.pipe';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class JourneeDetail {
+  private readonly pricing = inject(PricingService);
+
   /** Copie de travail de la journée à éditer. */
   readonly journee = input.required<Journee>();
   /** Domaines disponibles pour le pré-remplissage du lieu. */
@@ -38,8 +43,10 @@ export class JourneeDetail {
   readonly wentToWedding = output<void>();
   readonly dayChanged = output<number>();
   readonly eventChanged = output<number>();
+  readonly openDocument = output<DocumentRequest>();
 
   protected readonly Statut = Statut;
+  protected readonly Etape = Etape;
 
   protected readonly statutOptions: ReadonlyArray<{ value: Statut; label: string }> = [
     { value: Statut.Demande, label: 'Demande Mariage' },
@@ -82,5 +89,79 @@ export class JourneeDetail {
     this.data.mariage.domaine = domaine.domaine;
     this.data.mariage.adresse = domaine.adresse;
     this.data.mariage.codepostal = domaine.codepostal;
+  }
+
+  // --- Documents & récapitulatif --------------------------------------------
+
+  protected get hasDevis(): boolean {
+    return !!this.data.devis?.creation;
+  }
+
+  protected get devisPrestas(): Presta[] {
+    return this.data.devis?.prestas ?? [];
+  }
+
+  protected lineLabel(presta: Presta): string {
+    return this.pricing.lineLabel(presta);
+  }
+
+  protected total(): number {
+    return this.pricing.total(this.devisPrestas);
+  }
+
+  protected arrhes(): number {
+    return this.pricing.arrhes(this.devisPrestas);
+  }
+
+  protected paid(): number {
+    return this.pricing.paid(this.data);
+  }
+
+  protected providersPaid(): number {
+    return this.pricing.providersPaid(this.data);
+  }
+
+  protected mine(): number {
+    return this.pricing.mine(this.data);
+  }
+
+  protected factureSold(facture: Facture): number {
+    return this.pricing.factureSold(facture);
+  }
+
+  protected money(value: number | string): string {
+    return formatAmount(value);
+  }
+
+  protected formatNum(value: number | string | undefined): string {
+    return String(value ?? '').padStart(3, '0');
+  }
+
+  protected etapeLabel(): string {
+    switch (this.data.etape) {
+      case Etape.Devis:
+        return 'Créer un devis';
+      case Etape.Arrhes:
+        return 'Facture arrhes';
+      case Etape.Solde:
+        return 'Facture finale';
+      case Etape.Termine:
+        return 'Événement terminé';
+      default:
+        return 'N/A';
+    }
+  }
+
+  protected openDevis(): void {
+    this.openDocument.emit({ mode: DocumentMode.Devis, factureIndex: -1 });
+  }
+
+  protected openFacture(index: number): void {
+    this.openDocument.emit({ mode: DocumentMode.Facture, factureIndex: index });
+  }
+
+  protected clickEtape(): void {
+    if (this.data.etape === Etape.Devis) this.openDevis();
+    else this.openFacture(-1);
   }
 }
