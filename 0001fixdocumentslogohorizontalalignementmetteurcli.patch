@@ -1,0 +1,130 @@
+From bc623d15eb4c92c6918d5fa5a86f3ffc48b1a1a3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 21 Jun 2026 10:07:26 +0000
+Subject: [PATCH] =?UTF-8?q?fix(documents):=20logo=20horizontal,=20aligneme?=
+ =?UTF-8?q?nt=20=C3=A9metteur/cliente,=20switch=20sticky?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Logo dimensionné par la hauteur (robuste à un logo horizontal) dans l'app bar,
+  l'écran d'accès et les documents PDF.
+- Devis/facture : blocs émetteur et cliente alignés (mêmes lignes, alignés à
+  gauche, haut commun) pour un rendu net.
+- Coordonnées bancaires et « THANK YOU » réduits en pied de document → plus de
+  place gagnée.
+- Bascule « Édition / Aperçu » rendue sticky (sous l'app bar) : toujours
+  accessible pendant le défilement de l'éditeur sur mobile.
+
+NB : le fichier image du logo (public/logo.png) doit être remplacé par le
+nouveau logo ; le code s'adapte automatiquement à son format horizontal.
+
+Build dev + prod OK ; rendu validé par captures.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/app.scss                               |  9 +++++----
+ .../features/documents/document-editor.scss    |  4 ++++
+ src/app/features/documents/document-pdf.scss   | 18 ++++++++++--------
+ 3 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/app/app.scss b/src/app/app.scss
+index 0d86ec4..8aa1eb5 100644
+--- a/src/app/app.scss
++++ b/src/app/app.scss
+@@ -23,8 +23,9 @@
+ }
+ 
+ .gate__logo {
+-  width: 92px;
+-  height: auto;
++  height: 52px;
++  width: auto;
++  max-width: 80%;
+ }
+ 
+ .gate__form {
+@@ -51,8 +52,8 @@
+ }
+ 
+ .appbar__logo {
+-  width: 34px;
+-  height: auto;
++  height: 26px;
++  width: auto;
+ }
+ 
+ .appbar__title {
+diff --git a/src/app/features/documents/document-editor.scss b/src/app/features/documents/document-editor.scss
+index 6cc3257..0f088f7 100644
+--- a/src/app/features/documents/document-editor.scss
++++ b/src/app/features/documents/document-editor.scss
+@@ -195,6 +195,10 @@
+     padding: 4px;
+     background: var(--brand-soft);
+     border-radius: var(--radius-full);
++    position: sticky;
++    top: 60px;
++    z-index: 5;
++    box-shadow: 0 0 0 14px var(--bg);
+ 
+     button {
+       flex: 1;
+diff --git a/src/app/features/documents/document-pdf.scss b/src/app/features/documents/document-pdf.scss
+index 4997ae8..7937e1c 100644
+--- a/src/app/features/documents/document-pdf.scss
++++ b/src/app/features/documents/document-pdf.scss
+@@ -18,6 +18,7 @@
+   }
+   .between {
+     justify-content: space-between;
++    align-items: flex-start;
+   }
+ 
+   #htmlContent {
+@@ -72,12 +73,13 @@
+     color: white;
+   }
+ 
++  // Logo horizontal : dimensionné par la hauteur (robuste à tout ratio).
+   .logo {
+-    width: 21%;
+-    margin: auto;
+-    display: flex;
+-    margin-top: 5px;
+-    margin-bottom: 8px;
++    display: block;
++    height: 56px;
++    width: auto;
++    max-width: 70%;
++    margin: 6px auto 8px;
+   }
+ 
+   .date {
+@@ -132,7 +134,7 @@
+     text-align: right;
+   }
+   .client p {
+-    text-align: right;
++    text-align: left;
+   }
+   .green {
+     font-weight: bold;
+@@ -199,11 +201,11 @@
+ 
+   .iban p {
+     color: #ab83ba;
+-    font-size: 12px !important;
++    font-size: 10px !important;
+   }
+   .thank p {
+     color: #87528e;
+-    font-size: 29px !important;
++    font-size: 22px !important;
+     text-align: center;
+   }
+ 
+-- 
+2.43.0
+
