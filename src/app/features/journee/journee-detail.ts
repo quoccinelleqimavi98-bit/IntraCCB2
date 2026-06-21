@@ -44,6 +44,7 @@ export class JourneeDetail {
   readonly dayChanged = output<number>();
   readonly eventChanged = output<number>();
   readonly openDocument = output<DocumentRequest>();
+  readonly openPlanning = output<void>();
 
   protected readonly Statut = Statut;
   protected readonly Etape = Etape;
@@ -95,6 +96,10 @@ export class JourneeDetail {
 
   protected get hasDevis(): boolean {
     return !!this.data.devis?.creation;
+  }
+
+  protected get hasPlanning(): boolean {
+    return !!this.data.planning?.date;
   }
 
   protected get devisPrestas(): Presta[] {
@@ -163,5 +168,9 @@ export class JourneeDetail {
   protected clickEtape(): void {
     if (this.data.etape === Etape.Devis) this.openDevis();
     else this.openFacture(-1);
+  }
+
+  protected openPlanningDoc(): void {
+    this.openPlanning.emit();
   }
 }

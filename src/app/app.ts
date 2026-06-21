@@ -12,6 +12,7 @@ import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relanc
 import { Calendar } from './features/calendar/calendar';
 import { DocumentEditor } from './features/documents/document-editor';
 import { DocumentRequest } from './features/documents/document.types';
+import { PlanningEditor } from './features/documents/planning-editor';
 import { JourneeDetail } from './features/journee/journee-detail';
 import { FrenchDatePipe } from './shared/pipes/french-date.pipe';
 import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
@@ -23,7 +24,7 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
  */
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, FrenchDatePipe],
+  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, PlanningEditor, FrenchDatePipe],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,6 +51,9 @@ export class App {
   protected readonly documentRequest = signal<DocumentRequest | null>(null);
   protected readonly nextDevis = signal(1);
   protected readonly nextFacture = signal(1);
+
+  /** Éditeur de planning ouvert par-dessus la fiche. */
+  protected readonly planningOpen = signal(false);
 
   /** Nombre d'événements le même jour que la sélection. */
   protected readonly sameDayCount = computed(() => {
@@ -102,6 +106,21 @@ export class App {
     const journee = this.selected();
     if (journee && index >= 0) journee.factures.splice(index, 1);
     this.documentRequest.set(null);
+  }
+
+  // --- Planning du jour-J ---------------------------------------------------
+
+  protected openPlanning(): void {
+    this.planningOpen.set(true);
+  }
+
+  /** Le planning a été appliqué à la copie de travail : retour à la fiche. */
+  protected onPlanningSaved(): void {
+    this.planningOpen.set(false);
+  }
+
+  protected onPlanningClosed(): void {
+    this.planningOpen.set(false);
   }
 
   // --- Sélection / ouverture d'une journée ----------------------------------

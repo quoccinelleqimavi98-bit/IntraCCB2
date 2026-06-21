@@ -1,0 +1,234 @@
+<div class="editor" [class.editor--preview]="viewMode() === 'preview'">
+  <header class="editor__head">
+    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+    <h2>Planning · {{ state.date }}</h2>
+    <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
+  </header>
+
+  <div class="editor__viewtoggle">
+    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
+    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
+  </div>
+
+  <div class="editor__panes">
+    <div class="editor__form">
+      <!-- Paramètres généraux -->
+      <section class="card section">
+        <div class="section__head">
+          <h3 class="section__title">Paramètres</h3>
+          <button class="btn btn--subtle btn--sm" (click)="calculer()">Recalculer</button>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label>Date</label>
+            <input class="input" [(ngModel)]="state.date" placeholder="jj/mm/aaaa" />
+          </div>
+          <div class="field">
+            <label>Début cérémonie</label>
+            <input
+              class="input"
+              [(ngModel)]="state.ceremonie"
+              (input)="onCeremonie()"
+              placeholder="ex. 15h30"
+            />
+          </div>
+          <div class="field">
+            <label>Fin des prestations</label>
+            <input
+              class="input"
+              [(ngModel)]="state.finPrestas"
+              (input)="onFinPrestas()"
+              placeholder="ex. 14h00"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Un bloc par artiste ayant des prestations -->
+      @for (i of artistsWithPrestas; track i) {
+        <section class="card section artist-block">
+          <div class="artist-block__head">
+            <h3 class="section__title">
+              {{ artistName(state.artists[i]) || 'Artiste ' + (i + 1) }}
+            </h3>
+            <div class="artist-times">
+              <input
+                class="input"
+                [(ngModel)]="state.artists[i].arrivee"
+                (input)="onArrivee(i)"
+                placeholder="Arrivée"
+              />
+              <input
+                class="input"
+                [(ngModel)]="state.artists[i].retouches"
+                (input)="onRetouche(i)"
+                placeholder="Retouches"
+              />
+              <input
+                class="input"
+                [(ngModel)]="state.artists[i].disponibilite"
+                (input)="onDispo(i)"
+                placeholder="Dispo."
+              />
+            </div>
+          </div>
+
+          <div class="prow prow--head">
+            <span>Prix</span>
+            <span>Artiste</span>
+            <span>Ordre</span>
+            <span>Durée</span>
+            <span class="prow__mc">M / C</span>
+            <span></span>
+          </div>
+
+          @for (presta of prestasOf(i); track presta.slotIndex; let x = $index) {
+            <div class="prow" [class.prow--bride]="presta.bride">
+              <input class="input" [(ngModel)]="presta.prix" inputmode="decimal" />
+
+              <select class="select" [(ngModel)]="presta.artisteIndex" (change)="onArtist(presta)">
+                @for (a of state.artists; track $index) {
+                  <option [ngValue]="$index">{{ a.prenom || 'Artiste ' + ($index + 1) }}</option>
+                }
+              </select>
+
+              <div class="prow__order">
+                <button
+                  class="icon-btn icon-btn--sm"
+                  (click)="moveUp(i, x)"
+                  [disabled]="x === 0"
+                  aria-label="Monter"
+                >
+                  ↑
+                </button>
+                <button
+                  class="icon-btn icon-btn--sm"
+                  (click)="moveDown(i, x)"
+                  [disabled]="x === prestasOf(i).length - 1"
+                  aria-label="Descendre"
+                >
+                  ↓
+                </button>
+              </div>
+
+              <input
+                class="input prow__time"
+                [(ngModel)]="presta.time"
+                (input)="onTime(presta)"
+                inputmode="numeric"
+              />
+
+              <div class="prow__mc">
+                <label class="checkbox">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="presta.maquillage"
+                    (change)="toggleType(presta, 'm')"
+                  />
+                  <span>M</span>
+                </label>
+                <label class="checkbox">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="presta.coiffure"
+                    (change)="toggleType(presta, 'c')"
+                  />
+                  <span>C</span>
+                </label>
+              </div>
+
+              <div class="prow__actions">
+                <button
+                  class="icon-btn icon-btn--sm"
+                  (click)="rename(presta)"
+                  aria-label="Renommer"
+                >
+                  ✎
+                </button>
+                <button
+                  class="icon-btn icon-btn--sm prow__del"
+                  (click)="deletePresta(presta)"
+                  aria-label="Supprimer"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          }
+
+          <button class="btn btn--ghost btn--sm add-row" (click)="addPresta(i)">
+            + Ajouter une prestation
+          </button>
+        </section>
+      }
+
+      <!-- Gestion des artistes -->
+      <section class="card section">
+        <div class="section__head">
+          <h3 class="section__title">Artistes</h3>
+          <button class="btn btn--subtle btn--sm" (click)="addArtist()">+ Ajouter</button>
+        </div>
+        <div class="artists">
+          @for (artist of state.artists; track $index) {
+            <div class="artist-card">
+              <div class="artist-card__top">
+                <span class="artist-card__gain">{{ money(calcGains($index)) }}€</span>
+                @if (prestasOf($index).length === 0) {
+                  <button
+                    class="icon-btn icon-btn--sm prow__del"
+                    (click)="deleteArtist($index)"
+                    aria-label="Supprimer l'artiste"
+                  >
+                    ×
+                  </button>
+                }
+              </div>
+              <input class="input" [(ngModel)]="artist.prenom" placeholder="Prénom" />
+              <input class="input" [(ngModel)]="artist.nom" placeholder="Nom" />
+              <input class="input" [(ngModel)]="artist.tel" placeholder="Téléphone" />
+              <input class="input" [(ngModel)]="artist.mail" placeholder="E-mail" />
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Lieu -->
+      <section class="card section">
+        <h3 class="section__title">Lieu</h3>
+        <div class="grid">
+          <div class="field field--full">
+            <label>Domaine</label>
+            <input class="input" [(ngModel)]="state.domaine" placeholder="Domaine" />
+          </div>
+          <div class="field field--full">
+            <label>Adresse</label>
+            <input class="input" [(ngModel)]="state.adresse" placeholder="Adresse" />
+          </div>
+          <div class="field field--full">
+            <label>Code postal &amp; ville</label>
+            <input class="input" [(ngModel)]="state.codepostal" placeholder="Code postal & ville" />
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="editor__preview">
+      <div class="preview-scroll" #previewHost>
+        <div
+          class="preview-stage"
+          [style.width.px]="595 * previewScale()"
+          [style.height.px]="845 * previewScale()"
+        >
+          <div class="preview-zoom" [style.transform]="'scale(' + previewScale() + ')'">
+            <app-planning-pdf [state]="state" [lang]="lang" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="editor__actions">
+    <button class="btn btn--primary" (click)="generatePdf()">Générer le PDF</button>
+    <button class="btn btn--ghost" (click)="save()">Enregistrer</button>
+  </footer>
+</div>

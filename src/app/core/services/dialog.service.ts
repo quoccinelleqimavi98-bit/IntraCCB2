@@ -21,4 +21,19 @@ export class DialogService {
     });
     return result.isConfirmed;
   }
+
+  /** Demande une saisie texte. Résout à la valeur, ou `null` si annulé. */
+  async prompt(title: string, value = ''): Promise<string | null> {
+    const result = await Swal.fire({
+      title,
+      input: 'text',
+      inputValue: value,
+      showCancelButton: true,
+      confirmButtonText: 'Valider',
+      cancelButtonText: 'Annuler',
+      confirmButtonColor: '#aa82ba',
+      cancelButtonColor: '#7c7184',
+    });
+    return result.isConfirmed ? (result.value ?? '') : null;
+  }
 }

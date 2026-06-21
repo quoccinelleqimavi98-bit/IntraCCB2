@@ -35,6 +35,13 @@
         (closed)="onDocumentClosed()"
         (removed)="onDocumentRemoved(doc.factureIndex)"
       />
+    } @else if (planningOpen()) {
+      <app-planning-editor
+        [journee]="selected()!"
+        [catalog]="catalog()"
+        (saved)="onPlanningSaved()"
+        (closed)="onPlanningClosed()"
+      />
     } @else if (selected(); as journee) {
       <app-journee-detail
         [journee]="journee"
@@ -50,6 +57,7 @@
         (dayChanged)="changeDay($event)"
         (eventChanged)="changeEvent($event)"
         (openDocument)="openDocument($event)"
+        (openPlanning)="openPlanning()"
       />
     } @else {
       @if (loading()) {

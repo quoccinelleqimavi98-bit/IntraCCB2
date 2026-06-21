@@ -1,0 +1,324 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.editor {
+  max-width: 1200px;
+  margin: 0 auto;
+  @include flex-column(var(--space-4));
+  animation: fade-in 0.25s ease both;
+}
+
+.editor__head {
+  @include flex-between;
+  gap: var(--space-3);
+
+  h2 {
+    font-size: var(--fs-lg);
+    color: var(--brand-deep);
+    @include truncate;
+
+    @include mobile {
+      font-size: var(--fs-md);
+    }
+  }
+}
+
+.editor__viewtoggle {
+  display: none;
+}
+
+.editor__panes {
+  display: grid;
+  grid-template-columns: minmax(440px, 1fr) minmax(300px, 540px);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.editor__form {
+  @include flex-column(var(--space-4));
+  min-width: 0;
+}
+
+.section {
+  padding: var(--space-5);
+
+  @include mobile {
+    padding: var(--space-4);
+  }
+}
+
+.section__head {
+  @include flex-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.section__title {
+  font-size: var(--fs-md);
+  color: var(--brand-strong);
+  margin-bottom: var(--space-4);
+
+  .section__head & {
+    margin-bottom: 0;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+// --- Bloc artiste ----------------------------------------------------------
+
+.artist-block__head {
+  @include flex-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+
+  .section__title {
+    margin-bottom: 0;
+  }
+}
+
+.artist-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 96px));
+  gap: var(--space-2);
+
+  .input {
+    height: 36px;
+    text-align: center;
+  }
+}
+
+// --- Lignes de prestation --------------------------------------------------
+
+.prow {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) auto 62px auto auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+
+  .input,
+  .select {
+    height: 36px;
+  }
+  .select {
+    padding: 0 26px 0 8px;
+  }
+}
+
+.prow--head {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  padding-bottom: 0;
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.prow--bride {
+  background: var(--brand-tint);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.prow__time {
+  text-align: center;
+  width: 62px;
+}
+
+.prow__order,
+.prow__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.prow__mc {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.checkbox {
+  @include flex(flex-start, center, 4px);
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand);
+  }
+}
+
+.prow__del {
+  color: var(--danger);
+  &:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+}
+
+.add-row {
+  margin-top: var(--space-3);
+}
+
+// --- Gestion des artistes --------------------------------------------------
+
+.artists {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.artist-card {
+  @include flex-column(var(--space-2));
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+
+  .input {
+    height: 36px;
+  }
+}
+
+.artist-card__top {
+  @include flex-between;
+
+  .artist-card__gain {
+    font-weight: 700;
+    color: var(--brand-strong);
+  }
+}
+
+// --- Aperçu PDF ------------------------------------------------------------
+
+.editor__preview {
+  position: sticky;
+  top: 76px;
+}
+
+.preview-scroll {
+  overflow: auto;
+  max-width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #eceaef;
+  box-shadow: var(--shadow-sm);
+}
+
+.preview-stage {
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.preview-zoom {
+  width: 595px;
+  transform-origin: top left;
+}
+
+.editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+// --- Mobile / tablette -----------------------------------------------------
+
+@include tablet-down {
+  .editor__viewtoggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--brand-soft);
+    border-radius: var(--radius-full);
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    box-shadow: 0 0 0 14px var(--bg);
+
+    button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 9px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      color: var(--brand-strong);
+      cursor: pointer;
+      transition: var(--transition);
+
+      &.active {
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+      }
+    }
+  }
+
+  .editor__panes {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .editor:not(.editor--preview) .editor__preview {
+    display: none;
+  }
+  .editor--preview .editor__form {
+    display: none;
+  }
+
+  .editor__preview {
+    position: static;
+  }
+
+  .preview-scroll {
+    padding: var(--space-2);
+  }
+
+  // Une prestation = une carte empilée, lisible sur petit écran.
+  .prow {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+  }
+
+  .prow .select {
+    grid-column: 1 / -1;
+  }
+  .prow__order {
+    justify-content: flex-start;
+  }
+  .prow__time {
+    width: 100%;
+  }
+  .prow__mc {
+    justify-content: center;
+  }
+  .prow__actions {
+    justify-content: flex-end;
+  }
+}

@@ -188,6 +188,15 @@
             </div>
           }
 
+          @if (!isPerso) {
+            <div class="docs__row">
+              <span class="docs__label">Planning</span>
+              <button class="btn btn--ghost btn--sm" (click)="openPlanningDoc()">
+                {{ hasPlanning ? 'Planning du ' + data.planning?.date : 'Établir le planning' }}
+              </button>
+            </div>
+          }
+
           <div class="docs__row">
             <span class="docs__label">Étape</span>
             <button class="btn btn--ghost btn--sm" (click)="clickEtape()">
@@ -286,8 +295,4 @@
       <button class="btn btn--primary" (click)="wentToWedding.emit()">Aller au mariage</button>
     }
   </footer>
-
-  @if (!isEssai && !isPerso) {
-    <p class="todo muted">Planning et renseignements : à venir (étape 4).</p>
-  }
 </div>

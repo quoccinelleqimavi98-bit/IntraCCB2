@@ -1,0 +1,86 @@
+<div class="cloecss">
+  <div id="htmlContent">
+    <img src="logo.png" class="logo" alt="" />
+
+    <p class="rosebg">{{ fr() ? 'PLANNING' : 'SCHEDULE' }}</p>
+    <p class="date">{{ fr() ? 'Date' : 'Date' }} : {{ formatDate(state().date) }}</p>
+    <div class="ligne"></div>
+
+    <div class="content">
+      <div class="tableplann">
+        @for (h of headers; track $index) {
+          <div class="relative containerline">
+            <div class="orientedline"></div>
+            <p>&nbsp;</p>
+          </div>
+        }
+        <div class="absolute">
+          @for (h of headers; track $index) {
+            <div class="relative">
+              <p>{{ fr() ? h.fr : h.en }}</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      @for (entry of entries(); track entry.index) {
+        <table>
+          <tr class="firstrow">
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+            <td class="horaire">&nbsp;</td>
+          </tr>
+          @for (slot of entry.rows; track $index; let i = $index) {
+            <tr class="relative">
+              <p class="invitee" [class.onlyonerow]="entry.rows.length === 1">
+                {{ slotLabel(entry, i) }}
+              </p>
+              <td class="horaire noborder" [class.odd]="i % 2 !== 0">&nbsp;</td>
+              @for (col of columns; track col; let j = $index) {
+                <td
+                  class="horaire"
+                  [attr.rowspan]="rowSpan(entry.cells, i, j)"
+                  [attr.colspan]="colSpan(entry.cells, i, j)"
+                  [class.none]="hidden(entry.cells, i, j)"
+                  [class.odd]="i % 2 !== 0"
+                >
+                  {{ cellText(entry.cells, i, j) }}
+                </td>
+              }
+            </tr>
+          }
+        </table>
+        @if (multiArtist()) {
+          <p class="artist">{{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}</p>
+        }
+      }
+    </div>
+
+    <div class="bottomplann">
+      <p class="rosebg">&nbsp;</p>
+      <div class="botbot">
+        <div class="adres">
+          <p>{{ state().domaine || 'Domaine' }}</p>
+          <p>{{ state().adresse || 'Adresse' }}</p>
+          <p>{{ state().codepostal || (fr() ? 'Code postal + Ville' : 'Postal code + City') }}</p>
+        </div>
+        <p class="cont">CONTACT</p>
+        <div class="flex between">
+          @for (entry of entries(); track entry.index) {
+            <div>
+              <p>{{ artistName(entry.artist) }}</p>
+              <p>{{ entry.artist.tel }}</p>
+              <p>{{ entry.artist.mail }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

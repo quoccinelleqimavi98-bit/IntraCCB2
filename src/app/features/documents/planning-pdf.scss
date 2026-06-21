@@ -1,0 +1,209 @@
+// Styles du planning imprimable — repris fidèlement de l'application d'origine
+// pour un format de PDF identique (en-têtes diagonaux, fusion de cellules).
+// Scopés au composant.
+
+.cloecss {
+  display: inline-block;
+
+  p {
+    font-family: 'Cardo', serif;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  .flex {
+    display: flex;
+  }
+  .between {
+    justify-content: space-between;
+  }
+
+  #htmlContent {
+    width: 595px;
+    min-width: 595px;
+    height: 835px;
+    position: relative;
+    background: #fff;
+    padding: 5px;
+  }
+
+  .rosebg {
+    background-color: #ab83ba22;
+    font-size: 25.1px;
+    text-align: center;
+    letter-spacing: 15px;
+    color: white;
+  }
+
+  // Logo horizontal : dimensionné par la hauteur (robuste à tout ratio).
+  .logo {
+    display: block;
+    height: 56px;
+    width: auto;
+    max-width: 70%;
+    margin: 6px auto 8px;
+  }
+
+  .date {
+    text-align: center;
+    font-size: 15px;
+  }
+
+  .ligne {
+    border-bottom: 1px solid black;
+    width: 90%;
+    display: flex;
+    margin: auto;
+  }
+
+  .content {
+    padding: 0 15px;
+    position: relative;
+  }
+
+  .relative {
+    position: relative;
+  }
+  .absolute {
+    position: absolute;
+    display: flex;
+    left: 92px;
+  }
+  .none {
+    display: none;
+  }
+
+  // --- En-têtes diagonaux ---------------------------------------------------
+
+  .tableplann {
+    display: flex;
+    height: 80px;
+    padding-left: 52px;
+
+    p {
+      width: 58px;
+      white-space: nowrap;
+      text-align: center;
+      font-size: 10px !important;
+      transform: rotate(-45deg);
+      transform-origin: left bottom;
+      height: 40px;
+      top: 58px;
+      position: relative;
+    }
+    .containerline {
+      position: relative;
+      width: 55px;
+    }
+    .orientedline {
+      left: 0;
+      position: absolute;
+      border-left: 1px solid black;
+      height: 80px;
+      transform: rotate(45deg);
+      transform-origin: bottom left;
+    }
+  }
+
+  // --- Tableau par artiste --------------------------------------------------
+
+  table {
+    border-collapse: collapse;
+    top: -21px;
+    left: -14px;
+    position: relative;
+
+    .odd {
+      background-color: rgba(171, 131, 186, 0.1333333333);
+    }
+    td {
+      border: 1px solid black;
+    }
+    .horaire {
+      width: 55px;
+      min-width: 55px;
+      max-width: 55px;
+      text-align: center;
+      font-size: 13px;
+    }
+  }
+
+  .firstrow {
+    opacity: 0;
+
+    td {
+      border: 1px solid transparent;
+      border-bottom: 1px solid black;
+    }
+  }
+
+  .noborder {
+    border: unset !important;
+    border-top: 1px solid black !important;
+    border-bottom: 1px solid black !important;
+    padding-left: 10px;
+  }
+
+  .invitee {
+    white-space: nowrap;
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    z-index: 2;
+    background: #fff;
+    padding-right: 4px;
+  }
+
+  .artist {
+    position: relative;
+    top: -22px;
+    text-align: right;
+    font-style: italic;
+  }
+
+  // --- Pied : lieu + contacts -----------------------------------------------
+
+  .bottomplann {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+
+    .cont {
+      color: #87528e;
+      text-decoration: underline;
+      font-weight: bold;
+    }
+    .flex p {
+      font-size: 11px;
+    }
+  }
+
+  .botbot {
+    padding: 5px 20px;
+  }
+
+  .adres {
+    border: 1px solid black;
+    width: 250px;
+    padding: 5px 0;
+    margin: 15px 0;
+
+    p {
+      padding: 0 5px;
+    }
+    p:nth-child(1) {
+      font-weight: bold;
+      border-bottom: 1px solid black;
+    }
+    p:nth-child(2) {
+      font-style: italic;
+      padding-top: 5px;
+    }
+    p:nth-child(3) {
+      font-style: italic;
+    }
+  }
+}
