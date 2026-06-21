@@ -1,0 +1,104 @@
+[
+  {
+    "codepostal": "84400 Saignon",
+    "adresse": "Abbaye Saint Eusèbe",
+    "domaine": "Abbaye Saint Eusèbe",
+    "qte": 10
+  },
+  {
+    "codepostal": "30580 Fontarèches",
+    "adresse": "9 place de l'Eglise",
+    "domaine": "Chateau de Fontarèches",
+    "qte": 102
+  },
+  {
+    "codepostal": "84700 Sorgues",
+    "adresse": "2671 Chem. du Vaucroze",
+    "domaine": "Château La Tour Vaucros",
+    "qte": 54
+  },
+  {
+    "codepostal": "84480 Bonnieux",
+    "adresse": "10 Rue Victor Hugo",
+    "domaine": "Clos Du Buis",
+    "qte": 12
+  },
+  {
+    "codepostal": "04110 Reillanne",
+    "adresse": "le Couvent, route de la gare Lieu dit",
+    "domaine": "Couvent Notre-Dame des Prés",
+    "qte": 31
+  },
+  {
+    "codepostal": "84220 Roussillon",
+    "adresse": "765 D900",
+    "domaine": "Domaine d'Egenia",
+    "qte": 6
+  },
+  {
+    "codepostal": "84390 Sault",
+    "adresse": "76 Chem. du Trou de l'Eimine",
+    "domaine": "Domaine l'Ermitage",
+    "qte": 35
+  },
+  {
+    "codepostal": "84400 Sivergues",
+    "adresse": "Le Castellas",
+    "domaine": "Domaine du Castellas",
+    "qte": 17
+  },
+  {
+    "codepostal": "84160 Cadenet",
+    "adresse": "Domaine du Grand Lauron, 2960 Rte de Pertuis",
+    "domaine": "Domaine du Grand Lauron",
+    "qte": 31
+  },
+  {
+    "codepostal": "84390 Saint-Trinit",
+    "adresse": "Lieu dit le Bayle",
+    "domaine": "Domaine des Maillettes",
+    "qte": 42
+  },
+  {
+    "codepostal": "84470 Châteauneuf-de-Gadagne",
+    "adresse": "401 Chem. du Moulin Neuf",
+    "domaine": "Domaine de Blanche Fleur",
+    "qte": 42
+  },
+  {
+    "codepostal": "26230 Grignan",
+    "adresse": "Belfonds",
+    "domaine": "Domaine de Belfonds",
+    "qte": 103
+  },
+  {
+    "codepostal": "83560 Saint-Julien",
+    "adresse": "7539 Rte de Vinon",
+    "domaine": "Domaine de Noé",
+    "qte": 65
+  },
+  {
+    "codepostal": "84390 Sault",
+    "adresse": "Lieu dit, Javon",
+    "domaine": "La grange de Javon",
+    "qte": 22
+  },
+  {
+    "codepostal": "84410 Crillon-le-Brave",
+    "adresse": "1 Chem. des Carrières de Pierre",
+    "domaine": "La Maison de Crillon",
+    "qte": 45
+  },
+  {
+    "codepostal": "13660 Orgon",
+    "adresse": "Chemin de Saint-Véran",
+    "domaine": "Mas des Costes",
+    "qte": 35
+  },
+  {
+    "codepostal": "84220 Joucas",
+    "adresse": "255 chemin de la grande Pinède",
+    "domaine": "Le Jas de Joucas",
+    "qte": 14
+  }
+]
