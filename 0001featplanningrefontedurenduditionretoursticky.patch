@@ -1,0 +1,1290 @@
+From af6eca6b4c7e03a04743e2acdd189079bbedbd0e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 21 Jun 2026 20:21:01 +0000
+Subject: [PATCH] =?UTF-8?q?feat(planning):=20refonte=20du=20rendu/=C3=A9di?=
+ =?UTF-8?q?tion=20+=20retour=20sticky=20&=20garde-fou?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Planning (PDF) :
+- Tableau repensé pour la lisibilité : en-têtes horizontaux (charte),
+  fusion des cellules pour les horaires partagés (maquillage/coiffure,
+  cérémonie), lignes alternées — remplace les en-têtes diagonaux peu
+  lisibles.
+- Note de préparation ajoutée sous le tableau (FR + EN) : « venir la peau
+  nue et la chevelure sèche, lavée de la veille ».
+
+Planning (éditeur) :
+- Blocs de prestation repensés en cartes parlantes : nom personnalisable,
+  plage horaire calculée affichée en direct, maquillage/coiffure en
+  bascules, durée, prestataire, prix, réordonnancement.
+- Renommage d'une ligne désormais inline (remplace la popup) : le nom
+  personnalisé se reflète dans l'aperçu.
+
+Éditeurs (devis / facture / planning) :
+- Barre supérieure (bouton « Retour ») rendue collante : accessible à tout
+  moment pendant l'édition.
+- Garde-fou à la sortie : si des modifications ne sont pas enregistrées,
+  une boîte propose Enregistrer / Quitter sans enregistrer / Continuer
+  l'édition (DialogService.confirmSave).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/core/services/dialog.service.ts       |  26 +++
+ .../features/documents/document-editor.html   |  18 +-
+ .../features/documents/document-editor.scss   |  18 +-
+ src/app/features/documents/document-editor.ts |  30 +++
+ .../features/documents/planning-editor.html   | 218 ++++++++++--------
+ .../features/documents/planning-editor.scss   | 211 ++++++++++-------
+ src/app/features/documents/planning-editor.ts |  69 +++++-
+ src/app/features/documents/planning-pdf.html  |  99 ++++----
+ src/app/features/documents/planning-pdf.scss  | 190 +++++++--------
+ 9 files changed, 525 insertions(+), 354 deletions(-)
+
+diff --git a/src/app/core/services/dialog.service.ts b/src/app/core/services/dialog.service.ts
+index 12d75e1..05bb274 100644
+--- a/src/app/core/services/dialog.service.ts
++++ b/src/app/core/services/dialog.service.ts
+@@ -36,4 +36,30 @@ export class DialogService {
+     });
+     return result.isConfirmed ? (result.value ?? '') : null;
+   }
++
++  /**
++   * Confirmation à trois issues pour une sortie d'édition non enregistrée :
++   * enregistrer, quitter sans enregistrer, ou continuer l'édition.
++   */
++  async confirmSave(
++    text = 'Vous avez des modifications non enregistrées.',
++    title = 'Modifications en cours',
++  ): Promise<'save' | 'discard' | 'cancel'> {
++    const result = await Swal.fire({
++      title,
++      text,
++      icon: 'warning',
++      showDenyButton: true,
++      showCancelButton: true,
++      confirmButtonText: 'Enregistrer',
++      denyButtonText: 'Quitter sans enregistrer',
++      cancelButtonText: "Continuer l'édition",
++      confirmButtonColor: '#aa82ba',
++      denyButtonColor: '#b3261e',
++      cancelButtonColor: '#7c7184',
++    });
++    if (result.isConfirmed) return 'save';
++    if (result.isDenied) return 'discard';
++    return 'cancel';
++  }
+ }
+diff --git a/src/app/features/documents/document-editor.html b/src/app/features/documents/document-editor.html
+index 45023f6..69aa703 100644
+--- a/src/app/features/documents/document-editor.html
++++ b/src/app/features/documents/document-editor.html
+@@ -1,13 +1,15 @@
+ <div class="editor" [class.editor--preview]="viewMode() === 'preview'">
+-  <header class="editor__head">
+-    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+-    <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
+-    <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
+-  </header>
++  <div class="editor__bar">
++    <header class="editor__head">
++      <button class="btn btn--ghost btn--sm" (click)="close()">‹ Retour</button>
++      <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
++      <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
++    </header>
+ 
+-  <div class="editor__viewtoggle">
+-    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
+-    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++    <div class="editor__viewtoggle">
++      <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
++      <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++    </div>
+   </div>
+ 
+   <div class="editor__panes">
+diff --git a/src/app/features/documents/document-editor.scss b/src/app/features/documents/document-editor.scss
+index 0f088f7..303dd48 100644
+--- a/src/app/features/documents/document-editor.scss
++++ b/src/app/features/documents/document-editor.scss
+@@ -12,6 +12,18 @@
+   animation: fade-in 0.25s ease both;
+ }
+ 
++// Barre supérieure collante (retour toujours accessible).
++.editor__bar {
++  position: sticky;
++  top: 60px;
++  z-index: 6;
++  @include flex-column(var(--space-3));
++  padding: var(--space-3) 0;
++  background: color-mix(in srgb, var(--bg) 90%, transparent);
++  backdrop-filter: blur(8px);
++  border-bottom: 1px solid var(--border);
++}
++
+ .editor__head {
+   @include flex-between;
+   gap: var(--space-3);
+@@ -156,7 +168,7 @@
+ 
+ .editor__preview {
+   position: sticky;
+-  top: 76px;
++  top: 124px;
+ }
+ 
+ .preview-scroll {
+@@ -195,10 +207,6 @@
+     padding: 4px;
+     background: var(--brand-soft);
+     border-radius: var(--radius-full);
+-    position: sticky;
+-    top: 60px;
+-    z-index: 5;
+-    box-shadow: 0 0 0 14px var(--bg);
+ 
+     button {
+       flex: 1;
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index c5fab0f..7682c05 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -25,6 +25,7 @@ import {
+ } from '../../core/models';
+ import { PdfService } from '../../core/services/pdf.service';
+ import { PricingService } from '../../core/services/pricing.service';
++import { DialogService } from '../../core/services/dialog.service';
+ import { formatAmount } from '../../core/utils/money.utils';
+ import { addDaysFr, todayFrDate } from '../../core/utils/date.utils';
+ import { DocumentPdf } from './document-pdf';
+@@ -45,10 +46,14 @@ import { DocumentKind, DocumentValues } from './document.types';
+ export class DocumentEditor implements OnInit, AfterViewInit {
+   private readonly pricing = inject(PricingService);
+   private readonly pdf = inject(PdfService);
++  private readonly dialog = inject(DialogService);
+   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+   private readonly destroyRef = inject(DestroyRef);
+   private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
+ 
++  /** Empreinte de l'état éditable au chargement (pour détecter les modifications). */
++  private snapshot = '';
++
+   readonly journee = input.required<Journee>();
+   readonly mode = input.required<DocumentKind>();
+   readonly factureIndex = input(-1);
+@@ -127,6 +132,31 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+ 
+     if (this.isDevis) this.initDevis(data);
+     else this.initFacture(data);
++
++    this.snapshot = this.fingerprint();
++  }
++
++  /** Empreinte de l'état éditable, pour détecter une modification non enregistrée. */
++  private fingerprint(): string {
++    return JSON.stringify({
++      prestas: this.prestas,
++      values: this.values,
++      lang: this.lang,
++      modedevis: this.modedevis,
++      acquittee: this.acquittee,
++    });
++  }
++
++  /** Retour : demande confirmation si des modifications sont en cours. */
++  protected async close(): Promise<void> {
++    if (this.fingerprint() === this.snapshot) {
++      this.closed.emit();
++      return;
++    }
++    const choice = await this.dialog.confirmSave();
++    if (choice === 'cancel') return;
++    if (choice === 'save') this.save();
++    else this.closed.emit();
+   }
+ 
+   protected get isDevis(): boolean {
+diff --git a/src/app/features/documents/planning-editor.html b/src/app/features/documents/planning-editor.html
+index d77776e..cc2e3c9 100644
+--- a/src/app/features/documents/planning-editor.html
++++ b/src/app/features/documents/planning-editor.html
+@@ -1,13 +1,15 @@
+ <div class="editor" [class.editor--preview]="viewMode() === 'preview'">
+-  <header class="editor__head">
+-    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+-    <h2>Planning · {{ state.date }}</h2>
+-    <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
+-  </header>
++  <div class="editor__bar">
++    <header class="editor__head">
++      <button class="btn btn--ghost btn--sm" (click)="close()">‹ Retour</button>
++      <h2>Planning · {{ state.date }}</h2>
++      <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
++    </header>
+ 
+-  <div class="editor__viewtoggle">
+-    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
+-    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++    <div class="editor__viewtoggle">
++      <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
++      <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++    </div>
+   </div>
+ 
+   <div class="editor__panes">
+@@ -42,6 +44,10 @@
+             />
+           </div>
+         </div>
++        <p class="hint muted">
++          Renseignez l'heure de cérémonie <em>ou</em> de fin : les horaires se calculent en
++          remontant le temps. Sinon, ils s'enchaînent à partir de l'arrivée.
++        </p>
+       </section>
+ 
+       <!-- Un bloc par artiste ayant des prestations -->
+@@ -51,110 +57,134 @@
+             <h3 class="section__title">
+               {{ artistName(state.artists[i]) || 'Artiste ' + (i + 1) }}
+             </h3>
+-            <div class="artist-times">
++            <span class="artist-block__gain glow">{{ money(calcGains(i)) }}€</span>
++          </div>
++
++          <div class="artist-times">
++            <div class="field">
++              <label>Arrivée imposée</label>
+               <input
+                 class="input"
+                 [(ngModel)]="state.artists[i].arrivee"
+                 (input)="onArrivee(i)"
+-                placeholder="Arrivée"
++                placeholder="auto"
+               />
++            </div>
++            <div class="field">
++              <label>Retouches</label>
+               <input
+                 class="input"
+                 [(ngModel)]="state.artists[i].retouches"
+                 (input)="onRetouche(i)"
+-                placeholder="Retouches"
++                placeholder="auto"
+               />
++            </div>
++            <div class="field">
++              <label>Disponibilité</label>
+               <input
+                 class="input"
+                 [(ngModel)]="state.artists[i].disponibilite"
+                 (input)="onDispo(i)"
+-                placeholder="Dispo."
++                placeholder="—"
+               />
+             </div>
+           </div>
+ 
+-          <div class="prow prow--head">
+-            <span>Prix</span>
+-            <span>Artiste</span>
+-            <span>Ordre</span>
+-            <span>Durée</span>
+-            <span class="prow__mc">M / C</span>
+-            <span></span>
+-          </div>
+-
+-          @for (presta of prestasOf(i); track presta.slotIndex; let x = $index) {
+-            <div class="prow" [class.prow--bride]="presta.bride">
+-              <input class="input" [(ngModel)]="presta.prix" inputmode="decimal" />
++          <div class="pcards">
++            @for (presta of prestasOf(i); track presta.slotIndex; let x = $index) {
++              <article class="pcard" [class.pcard--bride]="presta.bride">
++                <div class="pcard__top">
++                  @if (slotFor(presta); as slot) {
++                    <input
++                      class="input pcard__name"
++                      [(ngModel)]="slot.nomPerso"
++                      [placeholder]="autoLabel(presta)"
++                    />
++                  }
++                  <span class="pcard__time">
++                    @if (arrivalOf(presta)) {
++                      <span class="pcard__arr">arr. {{ arrivalOf(presta) }}</span>
++                    }
++                    {{ timeRange(presta) }}
++                  </span>
++                </div>
+ 
+-              <select class="select" [(ngModel)]="presta.artisteIndex" (change)="onArtist(presta)">
+-                @for (a of state.artists; track $index) {
+-                  <option [ngValue]="$index">{{ a.prenom || 'Artiste ' + ($index + 1) }}</option>
+-                }
+-              </select>
+-
+-              <div class="prow__order">
+-                <button
+-                  class="icon-btn icon-btn--sm"
+-                  (click)="moveUp(i, x)"
+-                  [disabled]="x === 0"
+-                  aria-label="Monter"
+-                >
+-                  ↑
+-                </button>
+-                <button
+-                  class="icon-btn icon-btn--sm"
+-                  (click)="moveDown(i, x)"
+-                  [disabled]="x === prestasOf(i).length - 1"
+-                  aria-label="Descendre"
+-                >
+-                  ↓
+-                </button>
+-              </div>
++                <div class="pcard__mid">
++                  <label class="seg" [class.on]="presta.maquillage">
++                    <input
++                      type="checkbox"
++                      [(ngModel)]="presta.maquillage"
++                      (change)="toggleType(presta, 'm')"
++                    />
++                    Maquillage
++                  </label>
++                  <label class="seg" [class.on]="presta.coiffure">
++                    <input
++                      type="checkbox"
++                      [(ngModel)]="presta.coiffure"
++                      (change)="toggleType(presta, 'c')"
++                    />
++                    Coiffure
++                  </label>
++                  <span class="pcard__dur">
++                    <input
++                      class="input"
++                      [(ngModel)]="presta.time"
++                      (input)="onTime(presta)"
++                      inputmode="numeric"
++                    />
++                    min
++                  </span>
++                </div>
+ 
+-              <input
+-                class="input prow__time"
+-                [(ngModel)]="presta.time"
+-                (input)="onTime(presta)"
+-                inputmode="numeric"
+-              />
+-
+-              <div class="prow__mc">
+-                <label class="checkbox">
+-                  <input
+-                    type="checkbox"
+-                    [(ngModel)]="presta.maquillage"
+-                    (change)="toggleType(presta, 'm')"
+-                  />
+-                  <span>M</span>
+-                </label>
+-                <label class="checkbox">
+-                  <input
+-                    type="checkbox"
+-                    [(ngModel)]="presta.coiffure"
+-                    (change)="toggleType(presta, 'c')"
+-                  />
+-                  <span>C</span>
+-                </label>
+-              </div>
+-
+-              <div class="prow__actions">
+-                <button
+-                  class="icon-btn icon-btn--sm"
+-                  (click)="rename(presta)"
+-                  aria-label="Renommer"
+-                >
+-                  ✎
+-                </button>
+-                <button
+-                  class="icon-btn icon-btn--sm prow__del"
+-                  (click)="deletePresta(presta)"
+-                  aria-label="Supprimer"
+-                >
+-                  ×
+-                </button>
+-              </div>
+-            </div>
+-          }
++                <div class="pcard__bot">
++                  <label class="pcard__field">
++                    <span class="muted">Par</span>
++                    <select
++                      class="select"
++                      [(ngModel)]="presta.artisteIndex"
++                      (change)="onArtist(presta)"
++                    >
++                      @for (a of state.artists; track $index) {
++                        <option [ngValue]="$index">
++                          {{ a.prenom || 'Artiste ' + ($index + 1) }}
++                        </option>
++                      }
++                    </select>
++                  </label>
++                  <label class="pcard__field pcard__price">
++                    <span class="muted">Prix</span>
++                    <input class="input" [(ngModel)]="presta.prix" inputmode="decimal" />
++                  </label>
++                  <div class="pcard__actions">
++                    <button
++                      class="icon-btn icon-btn--sm"
++                      (click)="moveUp(i, x)"
++                      [disabled]="x === 0"
++                      aria-label="Monter"
++                    >
++                      ↑
++                    </button>
++                    <button
++                      class="icon-btn icon-btn--sm"
++                      (click)="moveDown(i, x)"
++                      [disabled]="x === prestasOf(i).length - 1"
++                      aria-label="Descendre"
++                    >
++                      ↓
++                    </button>
++                    <button
++                      class="icon-btn icon-btn--sm pcard__del"
++                      (click)="deletePresta(presta)"
++                      aria-label="Supprimer"
++                    >
++                      ×
++                    </button>
++                  </div>
++                </div>
++              </article>
++            }
++          </div>
+ 
+           <button class="btn btn--ghost btn--sm add-row" (click)="addPresta(i)">
+             + Ajouter une prestation
+@@ -172,10 +202,10 @@
+           @for (artist of state.artists; track $index) {
+             <div class="artist-card">
+               <div class="artist-card__top">
+-                <span class="artist-card__gain">{{ money(calcGains($index)) }}€</span>
++                <span class="artist-card__gain glow">{{ money(calcGains($index)) }}€</span>
+                 @if (prestasOf($index).length === 0) {
+                   <button
+-                    class="icon-btn icon-btn--sm prow__del"
++                    class="icon-btn icon-btn--sm pcard__del"
+                     (click)="deleteArtist($index)"
+                     aria-label="Supprimer l'artiste"
+                   >
+diff --git a/src/app/features/documents/planning-editor.scss b/src/app/features/documents/planning-editor.scss
+index 2c81e11..d287f7b 100644
+--- a/src/app/features/documents/planning-editor.scss
++++ b/src/app/features/documents/planning-editor.scss
+@@ -12,6 +12,18 @@
+   animation: fade-in 0.25s ease both;
+ }
+ 
++// Barre supérieure collante (retour toujours accessible).
++.editor__bar {
++  position: sticky;
++  top: 60px;
++  z-index: 6;
++  @include flex-column(var(--space-3));
++  padding: var(--space-3) 0;
++  background: color-mix(in srgb, var(--bg) 90%, transparent);
++  backdrop-filter: blur(8px);
++  border-bottom: 1px solid var(--border);
++}
++
+ .editor__head {
+   @include flex-between;
+   gap: var(--space-3);
+@@ -62,7 +74,8 @@
+   color: var(--brand-strong);
+   margin-bottom: var(--space-4);
+ 
+-  .section__head & {
++  .section__head &,
++  .artist-block__head & {
+     margin-bottom: 0;
+   }
+ }
+@@ -81,96 +94,163 @@
+   grid-column: 1 / -1;
+ }
+ 
++.hint {
++  margin-top: var(--space-3);
++  font-size: var(--fs-xs);
++  line-height: 1.45;
++}
++
+ // --- Bloc artiste ----------------------------------------------------------
+ 
+ .artist-block__head {
+   @include flex-between;
+   gap: var(--space-3);
+-  flex-wrap: wrap;
+   margin-bottom: var(--space-4);
++}
+ 
+-  .section__title {
+-    margin-bottom: 0;
+-  }
++.artist-block__gain {
++  font-weight: 700;
++  font-size: var(--fs-md);
+ }
+ 
+ .artist-times {
+   display: grid;
+-  grid-template-columns: repeat(3, minmax(0, 96px));
+-  gap: var(--space-2);
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: var(--space-3);
++  margin-bottom: var(--space-4);
+ 
+   .input {
+-    height: 36px;
++    height: 38px;
+     text-align: center;
+   }
+ }
+ 
+-// --- Lignes de prestation --------------------------------------------------
++// --- Cartes de prestation --------------------------------------------------
+ 
+-.prow {
+-  display: grid;
+-  grid-template-columns: 78px minmax(0, 1fr) auto 62px auto auto;
+-  gap: var(--space-2);
+-  align-items: center;
+-  padding: var(--space-2) 0;
++.pcards {
++  @include flex-column(var(--space-3));
++}
+ 
+-  .input,
+-  .select {
+-    height: 36px;
+-  }
+-  .select {
+-    padding: 0 26px 0 8px;
++.pcard {
++  @include flex-column(var(--space-3));
++  padding: var(--space-3) var(--space-4);
++  border: 1px solid var(--border);
++  border-radius: var(--radius-md);
++  background: var(--surface);
++
++  &--bride {
++    border-color: var(--brand);
++    background: var(--brand-tint);
+   }
+ }
+ 
+-.prow--head {
++.pcard__top {
++  @include flex(flex-start, center, var(--space-3));
++}
++
++.pcard__name {
++  flex: 1 1 auto;
++  min-width: 0;
++  font-weight: 600;
++  height: 38px;
++}
++
++.pcard__time {
++  flex: 0 0 auto;
++  @include flex-column(0);
++  align-items: flex-end;
++  font-weight: 700;
++  color: var(--brand-strong);
++  white-space: nowrap;
++  font-size: var(--fs-sm);
++}
++
++.pcard__arr {
+   font-size: var(--fs-xs);
+   font-weight: 600;
+   color: var(--text-muted);
+-  padding-bottom: 0;
++}
+ 
+-  @include mobile {
++.pcard__mid {
++  @include flex(flex-start, center, var(--space-2));
++  flex-wrap: wrap;
++}
++
++// Chips bascule maquillage / coiffure
++.seg {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  padding: 7px 14px;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-full);
++  font-size: var(--fs-xs);
++  font-weight: 600;
++  color: var(--text-muted);
++  cursor: pointer;
++  user-select: none;
++  transition: var(--transition);
++
++  input {
+     display: none;
+   }
+-}
+ 
+-.prow--bride {
+-  background: var(--brand-tint);
+-  border-radius: var(--radius-md);
+-  padding: var(--space-2);
++  &.on {
++    background: var(--brand);
++    border-color: var(--brand);
++    color: #fff;
++  }
+ }
+ 
+-.prow__time {
+-  text-align: center;
+-  width: 62px;
+-}
++.pcard__dur {
++  @include flex(flex-start, center, 4px);
++  margin-left: auto;
++  font-size: var(--fs-xs);
++  color: var(--text-muted);
+ 
+-.prow__order,
+-.prow__actions {
+-  display: flex;
+-  gap: 4px;
++  .input {
++    width: 56px;
++    height: 34px;
++    text-align: center;
++  }
+ }
+ 
+-.prow__mc {
+-  display: flex;
+-  gap: var(--space-2);
++.pcard__bot {
++  @include flex(flex-start, flex-end, var(--space-3));
++  flex-wrap: wrap;
+ }
+ 
+-.checkbox {
+-  @include flex(flex-start, center, 4px);
+-  cursor: pointer;
++.pcard__field {
++  @include flex-column(4px);
+   font-size: var(--fs-xs);
+-  color: var(--text-muted);
+ 
+-  input {
+-    width: 18px;
+-    height: 18px;
+-    accent-color: var(--brand);
++  .select,
++  .input {
++    height: 36px;
++  }
++
++  &:first-of-type {
++    flex: 1 1 120px;
++    min-width: 0;
+   }
+ }
+ 
+-.prow__del {
++.pcard__price {
++  width: 84px;
++
++  .input {
++    text-align: center;
++  }
++}
++
++.pcard__actions {
++  @include flex(flex-start, center, 4px);
++  margin-left: auto;
++}
++
++.pcard__del {
+   color: var(--danger);
++
+   &:hover {
+     border-color: var(--danger);
+     color: var(--danger);
+@@ -206,7 +286,6 @@
+ 
+   .artist-card__gain {
+     font-weight: 700;
+-    color: var(--brand-strong);
+   }
+ }
+ 
+@@ -214,7 +293,7 @@
+ 
+ .editor__preview {
+   position: sticky;
+-  top: 76px;
++  top: 124px;
+ }
+ 
+ .preview-scroll {
+@@ -253,10 +332,6 @@
+     padding: 4px;
+     background: var(--brand-soft);
+     border-radius: var(--radius-full);
+-    position: sticky;
+-    top: 60px;
+-    z-index: 5;
+-    box-shadow: 0 0 0 14px var(--bg);
+ 
+     button {
+       flex: 1;
+@@ -295,30 +370,4 @@
+   .preview-scroll {
+     padding: var(--space-2);
+   }
+-
+-  // Une prestation = une carte empilée, lisible sur petit écran.
+-  .prow {
+-    grid-template-columns: 1fr 1fr;
+-    gap: var(--space-2);
+-    padding: var(--space-3);
+-    border: 1px solid var(--border);
+-    border-radius: var(--radius-md);
+-    background: var(--surface-2);
+-  }
+-
+-  .prow .select {
+-    grid-column: 1 / -1;
+-  }
+-  .prow__order {
+-    justify-content: flex-start;
+-  }
+-  .prow__time {
+-    width: 100%;
+-  }
+-  .prow__mc {
+-    justify-content: center;
+-  }
+-  .prow__actions {
+-    justify-content: flex-end;
+-  }
+ }
+diff --git a/src/app/features/documents/planning-editor.ts b/src/app/features/documents/planning-editor.ts
+index e9ab38c..2937250 100644
+--- a/src/app/features/documents/planning-editor.ts
++++ b/src/app/features/documents/planning-editor.ts
+@@ -12,7 +12,16 @@ import {
+ } from '@angular/core';
+ import { FormsModule } from '@angular/forms';
+ 
+-import { Artist, CatalogItem, Journee, Langue, Planning, PlanningPresta } from '../../core/models';
++import {
++  Artist,
++  CatalogItem,
++  Journee,
++  Langue,
++  Planning,
++  PlanningPresta,
++  PlanningSlot,
++  SlotType,
++} from '../../core/models';
+ import { DialogService } from '../../core/services/dialog.service';
+ import { PdfService } from '../../core/services/pdf.service';
+ import { PlanningService } from '../../core/services/planning.service';
+@@ -52,6 +61,9 @@ export class PlanningEditor implements OnInit, AfterViewInit {
+   protected state!: PlanningEditorState;
+   protected lang = Langue.Francais;
+ 
++  /** Empreinte de l'état au chargement (détection des modifications). */
++  private snapshot = '';
++
+   /** Vue active sur mobile : formulaire ou aperçu. */
+   protected readonly viewMode = signal<'form' | 'preview'>('form');
+   /** Échelle d'affichage de l'aperçu (1 sur desktop, réduit sur mobile). */
+@@ -87,6 +99,24 @@ export class PlanningEditor implements OnInit, AfterViewInit {
+       };
+       this.planning.build(j.devis?.prestas ?? [], this.catalog(), this.state);
+     }
++
++    this.snapshot = this.fingerprint();
++  }
++
++  private fingerprint(): string {
++    return JSON.stringify({ state: this.state, lang: this.lang });
++  }
++
++  /** Retour : demande confirmation si des modifications sont en cours. */
++  protected async close(): Promise<void> {
++    if (this.fingerprint() === this.snapshot) {
++      this.closed.emit();
++      return;
++    }
++    const choice = await this.dialog.confirmSave();
++    if (choice === 'cancel') return;
++    if (choice === 'save') this.save();
++    else this.closed.emit();
+   }
+ 
+   ngAfterViewInit(): void {
+@@ -208,12 +238,37 @@ export class PlanningEditor implements OnInit, AfterViewInit {
+     this.planning.addPresta(this.state, i);
+   }
+ 
+-  protected async rename(presta: PlanningPresta): Promise<void> {
+-    const slot = this.state.slots.find((s) => s.prestaIndex === presta.slotIndex);
+-    if (!slot) return;
+-    const value = await this.dialog.prompt('Renommer cette ligne', slot.nomPerso ?? '');
+-    if (value === null) return;
+-    slot.nomPerso = value.trim() === '' ? undefined : value.trim();
++  /** Slot (ligne d'horaire) associé à une prestation. */
++  protected slotFor(presta: PlanningPresta): PlanningSlot | undefined {
++    return this.state.slots.find((s) => s.prestaIndex === presta.slotIndex);
++  }
++
++  /** Libellé automatique d'une ligne (« Invitée N » / « Mariée »), pour le placeholder. */
++  protected autoLabel(presta: PlanningPresta): string {
++    const slot = this.slotFor(presta);
++    if (!slot) return 'Invitée';
++    if (slot.type === SlotType.Mariee) return 'Mariée';
++    const siblings = this.planning.slotsOf(this.state, slot.artisteIndex);
++    let n = 0;
++    for (const s of siblings) {
++      if (s.type === SlotType.Invitee) n++;
++      if (s === slot) break;
++    }
++    return `Invitée ${n}`;
++  }
++
++  /** Plage horaire calculée d'une prestation (« 9h00 → 10h15 »). */
++  protected timeRange(presta: PlanningPresta): string {
++    const slot = this.slotFor(presta);
++    if (!slot) return '';
++    const start = slot.maquillage || slot.coiffure;
++    if (!start && !slot.fin) return '';
++    return `${start || '—'} → ${slot.fin || '—'}`;
++  }
++
++  /** Heure d'arrivée de l'artiste pour cette ligne (vide si non concernée). */
++  protected arrivalOf(presta: PlanningPresta): string {
++    return this.slotFor(presta)?.arrivee ?? '';
+   }
+ 
+   protected addArtist(): void {
+diff --git a/src/app/features/documents/planning-pdf.html b/src/app/features/documents/planning-pdf.html
+index fc72c10..5c63695 100644
+--- a/src/app/features/documents/planning-pdf.html
++++ b/src/app/features/documents/planning-pdf.html
+@@ -1,5 +1,5 @@
+ <div class="cloecss">
+-  <div id="htmlContent">
++  <div id="htmlContent" class="planning">
+     <img src="logo.png" class="logo" alt="" />
+ 
+     <p class="rosebg">{{ fr() ? 'PLANNING' : 'SCHEDULE' }}</p>
+@@ -7,62 +7,55 @@
+     <div class="ligne"></div>
+ 
+     <div class="content">
+-      <div class="tableplann">
+-        @for (h of headers; track $index) {
+-          <div class="relative containerline">
+-            <div class="orientedline"></div>
+-            <p>&nbsp;</p>
+-          </div>
+-        }
+-        <div class="absolute">
+-          @for (h of headers; track $index) {
+-            <div class="relative">
+-              <p>{{ fr() ? h.fr : h.en }}</p>
+-            </div>
+-          }
+-        </div>
+-      </div>
+-
+       @for (entry of entries(); track entry.index) {
+-        <table>
+-          <tr class="firstrow">
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-            <td class="horaire">&nbsp;</td>
+-          </tr>
+-          @for (slot of entry.rows; track $index; let i = $index) {
+-            <tr class="relative">
+-              <p class="invitee" [class.onlyonerow]="entry.rows.length === 1">
+-                {{ slotLabel(entry, i) }}
+-              </p>
+-              <td class="horaire noborder" [class.odd]="i % 2 !== 0">&nbsp;</td>
+-              @for (col of columns; track col; let j = $index) {
+-                <td
+-                  class="horaire"
+-                  [attr.rowspan]="rowSpan(entry.cells, i, j)"
+-                  [attr.colspan]="colSpan(entry.cells, i, j)"
+-                  [class.none]="hidden(entry.cells, i, j)"
+-                  [class.odd]="i % 2 !== 0"
+-                >
+-                  {{ cellText(entry.cells, i, j) }}
+-                </td>
+-              }
+-            </tr>
++        <div class="ptable-wrap">
++          @if (multiArtist()) {
++            <p class="ptable__artist">
++              {{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}
++            </p>
+           }
+-        </table>
+-        @if (multiArtist()) {
+-          <p class="artist">{{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}</p>
+-        }
++          <table class="ptable">
++            <thead>
++              <tr>
++                <th class="ptable__person">
++                  {{ multiArtist() ? entry.artist.prenom : fr() ? 'Invitées' : 'Guests' }}
++                </th>
++                @for (h of headers; track $index) {
++                  <th>{{ fr() ? h.fr : h.en }}</th>
++                }
++              </tr>
++            </thead>
++            <tbody>
++              @for (slot of entry.rows; track $index; let i = $index) {
++                <tr [class.alt]="i % 2 === 1">
++                  <td class="ptable__person">{{ slotLabel(entry, i) }}</td>
++                  @for (col of columns; track col; let j = $index) {
++                    <td
++                      class="ptable__cell"
++                      [attr.rowspan]="rowSpan(entry.cells, i, j)"
++                      [attr.colspan]="colSpan(entry.cells, i, j)"
++                      [class.none]="hidden(entry.cells, i, j)"
++                    >
++                      {{ cellText(entry.cells, i, j) }}
++                    </td>
++                  }
++                </tr>
++              }
++            </tbody>
++          </table>
++        </div>
+       }
++
++      <p class="note">
++        {{
++          fr()
++            ? "Pour garantir l'excellence du résultat, il est indispensable de venir la peau nue et la chevelure sèche, lavée de la veille."
++            : 'To guarantee an excellent result, it is essential to arrive with bare skin and dry hair, washed the day before.'
++        }}
++      </p>
+     </div>
+ 
+-    <div class="bottomplann">
++    <div class="planfooter">
+       <p class="rosebg">&nbsp;</p>
+       <div class="botbot">
+         <div class="adres">
+@@ -71,7 +64,7 @@
+           <p>{{ state().codepostal || (fr() ? 'Code postal + Ville' : 'Postal code + City') }}</p>
+         </div>
+         <p class="cont">CONTACT</p>
+-        <div class="flex between">
++        <div class="contacts">
+           @for (entry of entries(); track entry.index) {
+             <div>
+               <p>{{ artistName(entry.artist) }}</p>
+diff --git a/src/app/features/documents/planning-pdf.scss b/src/app/features/documents/planning-pdf.scss
+index beb74bf..2871a0e 100644
+--- a/src/app/features/documents/planning-pdf.scss
++++ b/src/app/features/documents/planning-pdf.scss
+@@ -1,6 +1,6 @@
+-// Styles du planning imprimable — repris fidèlement de l'application d'origine
+-// pour un format de PDF identique (en-têtes diagonaux, fusion de cellules).
+-// Scopés au composant.
++// Styles du planning imprimable — format A4 fidèle (couleurs de la charte),
++// mais tableau repensé pour la lisibilité (en-têtes horizontaux, fusion de
++// cellules pour les horaires partagés). Scopés au composant.
+ 
+ .cloecss {
+   display: inline-block;
+@@ -14,20 +14,14 @@
+     letter-spacing: 1px;
+   }
+ 
+-  .flex {
+-    display: flex;
+-  }
+-  .between {
+-    justify-content: space-between;
+-  }
+-
+   #htmlContent {
+     width: 595px;
+     min-width: 595px;
+     height: 835px;
+-    position: relative;
+     background: #fff;
+-    padding: 5px;
++    padding: 5px 5px 0;
++    display: flex;
++    flex-direction: column;
+   }
+ 
+   .rosebg {
+@@ -38,7 +32,6 @@
+     color: white;
+   }
+ 
+-  // Logo horizontal : dimensionné par la hauteur (robuste à tout ratio).
+   .logo {
+     display: block;
+     height: 56px;
+@@ -60,136 +53,121 @@
+   }
+ 
+   .content {
+-    padding: 0 15px;
+-    position: relative;
++    padding: 16px 15px 0;
+   }
+ 
+-  .relative {
+-    position: relative;
+-  }
+-  .absolute {
+-    position: absolute;
+-    display: flex;
+-    left: 92px;
+-  }
+   .none {
+     display: none;
+   }
+ 
+-  // --- En-têtes diagonaux ---------------------------------------------------
+-
+-  .tableplann {
+-    display: flex;
+-    height: 80px;
+-    padding-left: 52px;
++  // --- Tableau du planning --------------------------------------------------
+ 
+-    p {
+-      width: 58px;
+-      white-space: nowrap;
+-      text-align: center;
+-      font-size: 10px !important;
+-      transform: rotate(-45deg);
+-      transform-origin: left bottom;
+-      height: 40px;
+-      top: 58px;
+-      position: relative;
+-    }
+-    .containerline {
+-      position: relative;
+-      width: 55px;
+-    }
+-    .orientedline {
+-      left: 0;
+-      position: absolute;
+-      border-left: 1px solid black;
+-      height: 80px;
+-      transform: rotate(45deg);
+-      transform-origin: bottom left;
+-    }
++  .ptable-wrap {
++    margin-bottom: 14px;
+   }
+ 
+-  // --- Tableau par artiste --------------------------------------------------
++  .ptable__artist {
++    font-style: italic;
++    font-weight: bold;
++    margin-bottom: 4px;
++    color: #87528e;
++  }
+ 
+-  table {
++  .ptable {
++    width: 100%;
+     border-collapse: collapse;
+-    top: -21px;
+-    left: -14px;
+-    position: relative;
++    table-layout: fixed;
+ 
+-    .odd {
+-      background-color: rgba(171, 131, 186, 0.1333333333);
+-    }
++    th,
+     td {
+-      border: 1px solid black;
+-    }
+-    .horaire {
+-      width: 55px;
+-      min-width: 55px;
+-      max-width: 55px;
++      border: 1px solid #d8cbe0;
+       text-align: center;
+-      font-size: 13px;
++      padding: 5px 2px;
++      word-break: break-word;
+     }
+-  }
+ 
+-  .firstrow {
+-    opacity: 0;
++    thead th {
++      background-color: #ab83ba;
++      color: #fff;
++      font-family: 'Montserrat', sans-serif;
++      font-size: 7px;
++      font-weight: 700;
++      letter-spacing: 0.1px;
++      text-transform: uppercase;
++      line-height: 1.15;
++      padding: 6px 1px;
++    }
+ 
+-    td {
+-      border: 1px solid transparent;
+-      border-bottom: 1px solid black;
++    tbody td {
++      font-size: 12.5px;
+     }
+-  }
+ 
+-  .noborder {
+-    border: unset !important;
+-    border-top: 1px solid black !important;
+-    border-bottom: 1px solid black !important;
+-    padding-left: 10px;
+-  }
++    tr.alt td {
++      background-color: #ab83ba14;
++    }
+ 
+-  .invitee {
+-    white-space: nowrap;
+-    position: absolute;
+-    left: 5px;
+-    top: 2px;
+-    z-index: 2;
+-    background: #fff;
+-    padding-right: 4px;
++    // Colonne « personne »
++    .ptable__person {
++      width: 92px;
++      text-align: left;
++      padding-left: 8px;
++      font-weight: 700;
++      white-space: nowrap;
++      overflow: hidden;
++      text-overflow: ellipsis;
++    }
++    tbody .ptable__person {
++      font-size: 11.5px;
++    }
++    thead .ptable__person {
++      color: #fff;
++      font-size: 7px;
++    }
+   }
+ 
+-  .artist {
+-    position: relative;
+-    top: -22px;
+-    text-align: right;
++  // --- Note de préparation --------------------------------------------------
++
++  .note {
++    margin-top: 10px;
++    font-size: 11px !important;
+     font-style: italic;
++    text-align: center;
++    color: #555;
++    line-height: 1.4;
+   }
+ 
+-  // --- Pied : lieu + contacts -----------------------------------------------
++  // --- Pied : lieu + contacts (collé en bas de page) ------------------------
+ 
+-  .bottomplann {
+-    position: absolute;
+-    bottom: 0;
+-    width: 100%;
++  .planfooter {
++    margin-top: auto;
+ 
+     .cont {
+       color: #87528e;
+       text-decoration: underline;
+       font-weight: bold;
+     }
+-    .flex p {
+-      font-size: 11px;
+-    }
+   }
+ 
+   .botbot {
+-    padding: 5px 20px;
++    padding: 5px 20px 12px;
++  }
++
++  .contacts {
++    display: flex;
++    justify-content: space-between;
++    flex-wrap: wrap;
++    gap: 8px;
++
++    p {
++      font-size: 11px;
++    }
+   }
+ 
+   .adres {
+     border: 1px solid black;
+     width: 250px;
+     padding: 5px 0;
+-    margin: 15px 0;
++    margin: 12px 0;
+ 
+     p {
+       padding: 0 5px;
+@@ -198,12 +176,12 @@
+       font-weight: bold;
+       border-bottom: 1px solid black;
+     }
+-    p:nth-child(2) {
+-      font-style: italic;
+-      padding-top: 5px;
+-    }
++    p:nth-child(2),
+     p:nth-child(3) {
+       font-style: italic;
+     }
++    p:nth-child(2) {
++      padding-top: 5px;
++    }
+   }
+ }
+-- 
+2.43.0
+
