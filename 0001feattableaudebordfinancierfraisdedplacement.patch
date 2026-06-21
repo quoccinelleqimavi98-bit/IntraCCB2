@@ -1,0 +1,1270 @@
+From 84eaf8e3a6d30c1f021800c773c4946e780c12c3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 21 Jun 2026 19:52:45 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20tableau=20de=20bord=20financier=20+=20f?=
+ =?UTF-8?q?rais=20de=20d=C3=A9placement=20auto?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Comble les deux écarts fonctionnels restants vs l'app d'origine
+(hors fiches renseignement, hors périmètre).
+
+Tableau de bord (onglet « Bilan » de l'accueil) :
+- StatsService : port fidèle de la logique des services d'origine
+  (CalcService / DateService / PrestaService) sur le modèle de domaine —
+  heures travaillées (essai 120, autre 240, mariage via planning/devis),
+  déjà encaissé, reste à encaisser, paiement renforts, estimation/total
+  (net après abattement 24 %), compteurs de statuts, factures du mois
+  (encaissées / à encaisser), revenus mensuels + cumul annuel.
+- Dashboard : présentation refondue, responsive, filtrable par année/mois,
+  avec deux graphes SVG (revenus par mois, cumul annuel) et listes de
+  factures cliquables (ouvrent la journée).
+- Accueil : bascule Calendrier / Bilan.
+
+Frais de déplacement automatiques :
+- À la sélection d'un domaine dans la fiche, création/mise à jour de la
+  ligne « Frais de déplacement Jour-J (Aller/Retour) » (km du domaine) et
+  initialisation du devis (n°, dates) s'il n'existe pas encore.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/app.html                           |  53 +--
+ src/app/app.scss                           |  29 ++
+ src/app/app.ts                             |  14 +-
+ src/app/core/services/stats.service.ts     | 362 +++++++++++++++++++++
+ src/app/features/dashboard/dashboard.html  | 169 ++++++++++
+ src/app/features/dashboard/dashboard.scss  | 231 +++++++++++++
+ src/app/features/dashboard/dashboard.ts    | 218 +++++++++++++
+ src/app/features/journee/journee-detail.ts |  38 ++-
+ 8 files changed, 1090 insertions(+), 24 deletions(-)
+ create mode 100644 src/app/core/services/stats.service.ts
+ create mode 100644 src/app/features/dashboard/dashboard.html
+ create mode 100644 src/app/features/dashboard/dashboard.scss
+ create mode 100644 src/app/features/dashboard/dashboard.ts
+
+diff --git a/src/app/app.html b/src/app/app.html
+index 1defe64..22a0859 100644
+--- a/src/app/app.html
++++ b/src/app/app.html
+@@ -66,30 +66,41 @@
+         <p class="page__status page__status--error">{{ error() }}</p>
+       }
+ 
+-      <app-calendar (daySelected)="onDaySelected($event)" />
+-
+-      @if (upcoming(); as next) {
+-        <button class="next card" (click)="openUpcoming()">
+-          <span class="next__label muted">Prochain événement</span>
+-          <span class="next__main">
+-            <span class="chip" [class]="statutUi[next.statut].cssClass">
+-              <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
+-            </span>
+-            <strong>{{ next.client.nom || '—' }}</strong>
+-          </span>
+-          <span class="next__date">{{ next.date | frenchDate }}</span>
++      <div class="hometabs">
++        <button [class.active]="homeTab() === 'calendrier'" (click)="homeTab.set('calendrier')">
++          Calendrier
+         </button>
+-      }
++        <button [class.active]="homeTab() === 'bilan'" (click)="homeTab.set('bilan')">Bilan</button>
++      </div>
++
++      @if (homeTab() === 'calendrier') {
++        <app-calendar (daySelected)="onDaySelected($event)" />
+ 
+-      <div class="legend">
+-        @for (statut of legendStatuts; track statut) {
+-          <span class="chip" [class]="statutUi[statut].cssClass">
+-            <span class="chip__dot"></span>{{ statutUi[statut].label }}
+-          </span>
++        @if (upcoming(); as next) {
++          <button class="next card" (click)="openUpcoming()">
++            <span class="next__label muted">Prochain événement</span>
++            <span class="next__main">
++              <span class="chip" [class]="statutUi[next.statut].cssClass">
++                <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
++              </span>
++              <strong>{{ next.client.nom || '—' }}</strong>
++            </span>
++            <span class="next__date">{{ next.date | frenchDate }}</span>
++          </button>
+         }
+-        <span class="legend__mark legend__mark--essai">Manque essai</span>
+-        <span class="legend__mark legend__mark--planning">Manque planning</span>
+-      </div>
++
++        <div class="legend">
++          @for (statut of legendStatuts; track statut) {
++            <span class="chip" [class]="statutUi[statut].cssClass">
++              <span class="chip__dot"></span>{{ statutUi[statut].label }}
++            </span>
++          }
++          <span class="legend__mark legend__mark--essai">Manque essai</span>
++          <span class="legend__mark legend__mark--planning">Manque planning</span>
++        </div>
++      } @else {
++        <app-dashboard (daySelected)="onDaySelected($event)" />
++      }
+     }
+   </main>
+ }
+diff --git a/src/app/app.scss b/src/app/app.scss
+index 8aa1eb5..e048751 100644
+--- a/src/app/app.scss
++++ b/src/app/app.scss
+@@ -85,6 +85,35 @@
+   }
+ }
+ 
++// --- Onglets de l'accueil --------------------------------------------------
++
++.hometabs {
++  display: flex;
++  gap: 4px;
++  padding: 4px;
++  background: var(--brand-soft);
++  border-radius: var(--radius-full);
++  align-self: center;
++  width: min(360px, 100%);
++
++  button {
++    flex: 1;
++    border: none;
++    background: transparent;
++    padding: 9px;
++    border-radius: var(--radius-full);
++    font-weight: 600;
++    color: var(--brand-strong);
++    cursor: pointer;
++    transition: var(--transition);
++
++    &.active {
++      background: var(--surface);
++      box-shadow: var(--shadow-sm);
++    }
++  }
++}
++
+ // --- Prochain événement ----------------------------------------------------
+ 
+ .next {
+diff --git a/src/app/app.ts b/src/app/app.ts
+index ffbb694..49fe643 100644
+--- a/src/app/app.ts
++++ b/src/app/app.ts
+@@ -10,6 +10,7 @@ import { frenchLongDate, parseFrDate } from './core/utils/date.utils';
+ import { deepClone } from './core/utils/object.utils';
+ import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relance.utils';
+ import { Calendar } from './features/calendar/calendar';
++import { Dashboard } from './features/dashboard/dashboard';
+ import { DocumentEditor } from './features/documents/document-editor';
+ import { DocumentRequest } from './features/documents/document.types';
+ import { PlanningEditor } from './features/documents/planning-editor';
+@@ -24,7 +25,15 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
+  */
+ @Component({
+   selector: 'app-root',
+-  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, PlanningEditor, FrenchDatePipe],
++  imports: [
++    FormsModule,
++    Calendar,
++    Dashboard,
++    JourneeDetail,
++    DocumentEditor,
++    PlanningEditor,
++    FrenchDatePipe,
++  ],
+   templateUrl: './app.html',
+   styleUrl: './app.scss',
+   changeDetection: ChangeDetectionStrategy.OnPush,
+@@ -44,6 +53,9 @@ export class App {
+   protected readonly legendStatuts = LEGEND_STATUTS;
+   protected readonly statutUi = STATUT_UI;
+ 
++  /** Onglet de l'accueil : calendrier ou tableau de bord. */
++  protected readonly homeTab = signal<'calendrier' | 'bilan'>('calendrier');
++
+   /** Journée en cours d'édition (copie de travail), ou null sur le calendrier. */
+   protected readonly selected = signal<Journee | null>(null);
+ 
+diff --git a/src/app/core/services/stats.service.ts b/src/app/core/services/stats.service.ts
+new file mode 100644
+index 0000000..1792d94
+--- /dev/null
++++ b/src/app/core/services/stats.service.ts
+@@ -0,0 +1,362 @@
++import { inject, Injectable } from '@angular/core';
++
++import { Journee, Presta, Statut } from '../models';
++import { monthOfFr, parseFrDate, yearOfFr } from '../utils/date.utils';
++import { PricingService } from './pricing.service';
++
++/** Une facture du mois enrichie de la journée à laquelle elle appartient. */
++export interface FactureLigne {
++  nom: string;
++  /** Date de création de la facture (jj/mm/aaaa) — sert au tri et à l'affichage. */
++  creation: string;
++  /** Date de la journée associée (pour rouvrir la fiche). */
++  date: string;
++  montant: number;
++  id?: number;
++}
++
++/** Compteur d'un statut : encore à faire / déjà terminés. */
++export interface StatutCount {
++  still: number;
++  over: number;
++}
++
++/** Série annuelle pour les graphes (revenu mensuel + cumul). */
++export interface YearSeries {
++  year: number;
++  monthly: number[]; // 12 valeurs (index 0 = janvier)
++  cumulative: number[];
++}
++
++/**
++ * Indicateurs du tableau de bord (revenus, heures, estimations, factures).
++ *
++ * Port fidèle de la logique des services d'origine (`CalcService`,
++ * `DateService`, `PrestaService`) sur le modèle de domaine propre. Pur et sans
++ * état ; `mois = null` signifie « toute l'année », sinon 1–12.
++ */
++@Injectable({ providedIn: 'root' })
++export class StatsService {
++  private readonly pricing = inject(PricingService);
++
++  // --- Helpers prestations (ex-PrestaService) -------------------------------
++
++  /** Total d'une ligne (= moteur de prix). */
++  private calc(presta: Presta): number {
++    return this.pricing.lineTotal(presta);
++  }
++
++  /** Prix « à l'unité » (réduction + arrondi, frais au km inclus). */
++  private calcOne(presta: Presta): number {
++    if (presta.qte === '?') return 0;
++    let prix = presta.prix ?? 0;
++    if (presta.kilorly) {
++      const qte = Number(presta.qte);
++      prix = qte <= 10 ? 0 : (qte - 10) * 2 * (presta.prix ?? 0);
++    }
++    if (presta.reduc) prix -= (prix * presta.reduc) / 100;
++    if (Number.isInteger(presta.prix ?? 0) || presta.kilorly) prix = Math.floor(prix);
++    return prix;
++  }
++
++  /** Durée (min) des prestations du planning réalisées par moi (artiste 0). */
++  private planningPrestasTime(prestas: Presta[] | undefined): number {
++    let time = 0;
++    for (const p of prestas ?? []) {
++      const artiste = (p as { artisteIndex?: number }).artisteIndex ?? 0;
++      if (p.time && artiste === 0) time += p.time;
++    }
++    return time;
++  }
++
++  /** Durée (min) des prestations du devis (durée × quantité). */
++  private prestasTime(prestas: Presta[] | undefined): number {
++    let time = 0;
++    for (const p of prestas ?? []) {
++      if (p.time && p.qte && p.qte !== '?') time += p.time * Number(p.qte);
++    }
++    return time;
++  }
++
++  /** Somme des prestations, en (in)cluant les renforts selon les drapeaux. */
++  private prestasPrice(prestas: Presta[], noHelpers = true, onlyHelpers = false): number {
++    let price = 0;
++    for (const p of prestas) {
++      const renfort = (p.nom ?? '').includes('renfort');
++      if (onlyHelpers) {
++        if (renfort) price += this.calc(p);
++      } else if (noHelpers) {
++        if (!renfort) price += this.calc(p);
++      } else {
++        price += this.calc(p);
++      }
++    }
++    return price;
++  }
++
++  /** Somme des prestations du planning, côté moi (artiste 0) ou renforts. */
++  private planningPrestasPrice(prestas: Presta[] | undefined, notMe = false): number {
++    let price = 0;
++    for (const p of prestas ?? []) {
++      const artiste = (p as { artisteIndex?: number }).artisteIndex ?? 0;
++      if (notMe ? artiste !== 0 : artiste === 0) price += this.calcOne(p);
++    }
++    return price;
++  }
++
++  // --- Part journalière (ex-CalcService) ------------------------------------
++
++  /** Ce que je gagne sur une journée (planning si présent, sinon devis). */
++  mineThisDay(journee: Journee): number {
++    let total = 0;
++    if (journee.planning?.prestas) {
++      total += this.planningPrestasPrice(journee.planning.prestas, false);
++      for (const p of journee.devis?.prestas ?? []) {
++        if (p.kilorly && !(p.nom ?? '').includes('renfort')) total += this.calc(p);
++      }
++    } else if (journee.devis?.prestas) {
++      total += this.prestasPrice(journee.devis.prestas);
++    }
++    return Math.floor(total);
++  }
++
++  /** Montant déjà encaissé sur une journée (factures, hors part prestataires). */
++  alreadyPaidThisDay(journee: Journee, onlyFactures = false): number {
++    let total = 0;
++    for (const f of journee.factures) {
++      if (f.solde) {
++        total += f.realsold && f.realsold !== 0 ? Number(f.realsold) : Number(f.solde);
++      } else {
++        total += this.prestasPrice(f.prestas, false);
++        if (f.realsold && f.realsold !== 0) total = Number(f.realsold);
++      }
++    }
++    if (!onlyFactures) {
++      let prov = 0;
++      if (journee.prestataires) prov += Number(journee.prestataires);
++      else
++        for (const f of journee.factures) if (f.paiementPrestas) prov += Number(f.paiementPrestas);
++      total -= prov;
++    }
++    return Math.floor(total);
++  }
++
++  // --- Filtres ---------------------------------------------------------------
++
++  private inPeriod(dateStr: string, year: number, month: number | null): boolean {
++    return yearOfFr(dateStr) === year && (month === null || monthOfFr(dateStr) === month);
++  }
++
++  // --- Agrégats sur la période ----------------------------------------------
++
++  /** Minutes travaillées (essai 120, autre 240, mariage depuis planning/devis). */
++  hoursWorked(
++    journees: Journee[],
++    year: number,
++    month: number | null,
++    fromNow: boolean,
++    untilNow: boolean,
++  ): number {
++    const today = startOfToday();
++    let data = journees.filter((j) => this.inPeriod(j.date, year, month));
++    if (fromNow) data = data.filter((j) => onOrAfter(j.date, today));
++    else if (untilNow) data = data.filter((j) => before(j.date, today));
++
++    let time = 0;
++    for (const day of data) {
++      if (day.statut === Statut.Essai) time += 120;
++      else if (day.statut === Statut.Autre) time += 240;
++      else if (day.statut === Statut.Reserve) {
++        if (day.planning?.prestas) time += this.planningPrestasTime(day.planning.prestas);
++        else time += this.prestasTime(day.devis?.prestas);
++      }
++    }
++    return time;
++  }
++
++  /** Tarif horaire moyen (€/h) sur la période. */
++  perHour(
++    journees: Journee[],
++    year: number,
++    month: number | null,
++    fromNow: boolean,
++    untilNow: boolean,
++  ): number {
++    const hours = Math.trunc(this.hoursWorked(journees, year, month, fromNow, untilNow) / 60);
++    if (hours <= 0) return 0;
++    const base = fromNow
++      ? this.notPaid(journees, year, month)
++      : this.alreadyPaid(journees, year, month);
++    return Math.trunc(base / hours);
++  }
++
++  /** Déjà encaissé sur la période (par date de facture). */
++  alreadyPaid(journees: Journee[], year: number, month: number | null): number {
++    let total = 0;
++    for (const j of journees) {
++      for (const f of j.factures) {
++        if (!f.creation || !this.inPeriod(f.creation, year, month)) continue;
++        if (f.solde) {
++          total += f.realsold && f.realsold !== 0 ? Number(f.realsold) : Number(f.solde);
++        }
++      }
++    }
++    return Math.trunc(total);
++  }
++
++  /** Reste à encaisser sur la période (par date de journée). */
++  notPaid(journees: Journee[], year: number, month: number | null, withDemands = false): number {
++    let data = journees.filter(
++      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && j.devis?.creation,
++    );
++    if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
++
++    let total = 0;
++    for (const j of data) {
++      total += this.mineThisDay(j);
++      for (const f of j.factures) {
++        total -= f.realsold && f.realsold !== 0 ? Number(f.realsold) : Number(f.solde);
++      }
++    }
++    return Math.trunc(total);
++  }
++
++  /** Total reversé aux renforts sur la période. */
++  helpers(journees: Journee[], year: number, month: number | null): number {
++    const data = journees.filter(
++      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
++    );
++    let total = 0;
++    for (const j of data) {
++      let tot = 0;
++      if (j.prestataires) tot += Number(j.prestataires);
++      else for (const f of j.factures) if (f.paiementPrestas) tot += Number(f.paiementPrestas);
++      if (tot === 0 && j.planning?.prestas) {
++        tot += this.planningPrestasPrice(j.planning.prestas, true);
++      }
++      if (j.devis?.prestas) tot += this.prestasPrice(j.devis.prestas, false, true);
++      total += tot;
++    }
++    return Math.trunc(total);
++  }
++
++  /** Estimation (déjà payé + à venir, demandes incluses). */
++  estimate(journees: Journee[], year: number, month: number | null): number {
++    return this.alreadyPaid(journees, year, month) + this.notPaid(journees, year, month, true);
++  }
++
++  /** Total (déjà payé + reste à encaisser, hors demandes). */
++  totalRevenue(journees: Journee[], year: number, month: number | null): number {
++    return this.alreadyPaid(journees, year, month) + this.notPaid(journees, year, month);
++  }
++
++  /** Factures encaissées sur la période, triées par date de création. */
++  monthFactures(journees: Journee[], year: number, month: number | null): FactureLigne[] {
++    const lignes: FactureLigne[] = [];
++    for (const j of journees) {
++      for (const f of j.factures) {
++        if (!f.creation || !this.inPeriod(f.creation, year, month)) continue;
++        lignes.push({
++          nom: j.client.nom ?? '',
++          creation: f.creation,
++          date: j.date,
++          montant: this.pricing.factureSold(f),
++          id: j.id,
++        });
++      }
++    }
++    return this.sortByCreation(lignes);
++  }
++
++  /** Journées avec un reste à encaisser sur la période. */
++  monthFacturesMissing(journees: Journee[], year: number, month: number | null): FactureLigne[] {
++    const lignes: FactureLigne[] = [];
++    const data = journees.filter((j) => this.inPeriod(j.date, year, month) && j.etape !== 999);
++    for (const j of data) {
++      if (!j.devis?.prestas) continue;
++      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
++      if (reste > 0) {
++        lignes.push({
++          nom: j.client.nom ?? '',
++          creation: j.date,
++          date: j.date,
++          montant: reste,
++          id: j.id,
++        });
++      }
++    }
++    return this.sortByCreation(lignes);
++  }
++
++  /** Compteur d'un statut sur la période (encore à faire / terminés). */
++  statutCount(
++    journees: Journee[],
++    statut: Statut,
++    year: number,
++    month: number | null,
++  ): StatutCount {
++    const data = journees.filter((j) => this.inPeriod(j.date, year, month) && j.statut === statut);
++    return {
++      still: data.filter((j) => j.etape !== 999).length,
++      over: data.filter((j) => j.etape === 999).length,
++    };
++  }
++
++  /** Nombre de journées à une étape donnée (hors perso). */
++  etapeCount(journees: Journee[], etape: number, year: number, month: number | null): number {
++    return journees.filter(
++      (j) => this.inPeriod(j.date, year, month) && j.etape === etape && j.statut !== Statut.Perso,
++    ).length;
++  }
++
++  // --- Séries pour les graphes ----------------------------------------------
++
++  /** Revenu mensuel et cumulé par année (depuis les factures). */
++  yearSeries(journees: Journee[]): YearSeries[] {
++    const byYear = new Map<number, number[]>();
++    for (const j of journees) {
++      for (const f of j.factures) {
++        if (!f.creation) continue;
++        const year = yearOfFr(f.creation);
++        const month = monthOfFr(f.creation); // 1-12
++        if (!byYear.has(year)) byYear.set(year, new Array(12).fill(0));
++        byYear.get(year)![month - 1] += this.pricing.factureSold(f);
++      }
++    }
++    return [...byYear.entries()]
++      .sort((a, b) => a[0] - b[0])
++      .map(([year, monthly]) => {
++        const cumulative: number[] = [];
++        let sum = 0;
++        for (const value of monthly) {
++          sum += value;
++          cumulative.push(sum);
++        }
++        return { year, monthly, cumulative };
++      });
++  }
++
++  private sortByCreation(lignes: FactureLigne[]): FactureLigne[] {
++    return lignes.sort((a, b) => {
++      const da = parseFrDate(a.creation)?.getTime() ?? 0;
++      const db = parseFrDate(b.creation)?.getTime() ?? 0;
++      return da - db;
++    });
++  }
++}
++
++function startOfToday(): Date {
++  const today = new Date();
++  today.setHours(0, 0, 0, 0);
++  return today;
++}
++
++function onOrAfter(dateStr: string, today: Date): boolean {
++  const date = parseFrDate(dateStr);
++  return date !== null && date >= today;
++}
++
++function before(dateStr: string, today: Date): boolean {
++  const date = parseFrDate(dateStr);
++  return date !== null && date < today;
++}
+diff --git a/src/app/features/dashboard/dashboard.html b/src/app/features/dashboard/dashboard.html
+new file mode 100644
+index 0000000..5255692
+--- /dev/null
++++ b/src/app/features/dashboard/dashboard.html
+@@ -0,0 +1,169 @@
++<section class="dash">
++  <header class="dash__head">
++    <div class="dash__year">
++      <button class="icon-btn icon-btn--sm" (click)="changeYear(-1)" aria-label="Année précédente">
++        ‹
++      </button>
++      <strong>{{ year() }}</strong>
++      <button class="icon-btn icon-btn--sm" (click)="changeYear(1)" aria-label="Année suivante">
++        ›
++      </button>
++    </div>
++    <select
++      class="select dash__month"
++      [value]="month() ?? ''"
++      (change)="onMonth($any($event.target).value)"
++    >
++      <option value="">Toute l'année</option>
++      @for (m of months; track $index) {
++        <option [value]="$index + 1">{{ m }}</option>
++      }
++    </select>
++  </header>
++
++  <!-- Indicateurs clés -->
++  <div class="kpis">
++    <div class="kpi card">
++      <span class="kpi__label">Déjà encaissé</span>
++      <span class="kpi__value glow">{{ money(alreadyPaid()) }}€</span>
++    </div>
++    <div class="kpi card">
++      <span class="kpi__label">Reste à encaisser</span>
++      <span class="kpi__value">{{ money(notPaid()) }}€</span>
++    </div>
++    <div class="kpi card">
++      <span class="kpi__label">Total {{ periodLabel }}</span>
++      <span class="kpi__value">{{ money(total()) }}€</span>
++      <span class="kpi__sub muted">{{ money(net(total())) }}€ net</span>
++    </div>
++    <div class="kpi card">
++      <span class="kpi__label">Estimation {{ periodLabel }}</span>
++      <span class="kpi__value">{{ money(estimate()) }}€</span>
++      <span class="kpi__sub muted">{{ money(net(estimate())) }}€ net</span>
++    </div>
++    <div class="kpi card">
++      <span class="kpi__label">Paiement renforts</span>
++      <span class="kpi__value">{{ money(helpers()) }}€</span>
++    </div>
++  </div>
++
++  <!-- Heures & compteurs -->
++  <div class="dash__row">
++    <section class="card section">
++      <h3 class="section__title">Heures travaillées</h3>
++      <ul class="hours">
++        <li>
++          <span>Réalisé</span><strong class="glow">{{ hours().done.time }}</strong
++          ><em class="muted">{{ hours().done.rate }}€/h</em>
++        </li>
++        <li>
++          <span>À venir</span><strong>{{ hours().upcoming.time }}</strong
++          ><em class="muted">{{ hours().upcoming.rate }}€/h</em>
++        </li>
++        <li>
++          <span>Total {{ periodLabel }}</span
++          ><strong>{{ hours().period.time }}</strong
++          ><em class="muted">{{ hours().period.rate }}€/h</em>
++        </li>
++      </ul>
++    </section>
++
++    <section class="card section">
++      <h3 class="section__title">Suivi</h3>
++      <div class="counters">
++        @for (c of counters(); track c.label) {
++          <div class="counter">
++            <span class="counter__num glow">{{ c.still }}</span>
++            <span class="counter__label">{{ c.label }}</span>
++            @if (c.showOver) {
++              <span class="counter__over muted">{{ c.over }} finis</span>
++            }
++          </div>
++        }
++        <div class="counter">
++          <span class="counter__num">{{ finished() }}</span>
++          <span class="counter__label">Terminées</span>
++        </div>
++      </div>
++    </section>
++  </div>
++
++  <!-- Graphes -->
++  <div class="dash__row">
++    @for (graph of ['monthly', 'cumulative']; track graph) {
++      <section class="card section chart">
++        <h3 class="section__title">
++          {{ graph === 'monthly' ? 'Revenus par mois' : 'Cumul annuel' }}
++        </h3>
++        <svg
++          class="chart__svg"
++          [attr.viewBox]="'0 0 ' + chartGeo.w + ' ' + chartGeo.h"
++          preserveAspectRatio="xMidYMid meet"
++        >
++          <line
++            class="chart__axis"
++            [attr.x1]="chartGeo.padL"
++            [attr.y1]="axisY"
++            [attr.x2]="chartGeo.w - chartGeo.padR"
++            [attr.y2]="axisY"
++          />
++          @for (t of chart().monthTicks; track $index) {
++            <text class="chart__tick" [attr.x]="t.x" [attr.y]="chartGeo.h - 6" text-anchor="middle">
++              {{ t.label }}
++            </text>
++          }
++          @for (s of chart().views; track s.year) {
++            <polyline
++              fill="none"
++              [attr.stroke]="s.color"
++              stroke-width="2"
++              stroke-linejoin="round"
++              [attr.points]="graph === 'monthly' ? s.line : s.cumLine"
++            />
++            @for (d of graph === 'monthly' ? s.dots : s.cumDots; track $index) {
++              <circle [attr.cx]="d.x" [attr.cy]="d.y" r="2.4" [attr.fill]="s.color" />
++            }
++          }
++        </svg>
++        <div class="chart__legend">
++          @for (s of chart().views; track s.year) {
++            <span class="chart__year" [style.color]="s.color">● {{ s.year }}</span>
++          }
++        </div>
++      </section>
++    }
++  </div>
++
++  <!-- Factures -->
++  <div class="dash__row">
++    <section class="card section">
++      <h3 class="section__title">Encaissé — {{ money(alreadyPaid()) }}€</h3>
++      <div class="flist">
++        @for (f of paidFactures(); track $index) {
++          <button class="flist__row" (click)="openDay(f)">
++            <span class="flist__name">{{ f.nom || '—' }}</span>
++            <span class="flist__date muted">{{ f.creation }}</span>
++            <span class="flist__amount glow">{{ money(f.montant) }}€</span>
++          </button>
++        } @empty {
++          <p class="muted flist__empty">Aucune facture sur la période.</p>
++        }
++      </div>
++    </section>
++
++    <section class="card section">
++      <h3 class="section__title">À encaisser — {{ money(notPaid()) }}€</h3>
++      <div class="flist">
++        @for (f of missingFactures(); track $index) {
++          <button class="flist__row" (click)="openDay(f)">
++            <span class="flist__name">{{ f.nom || '—' }}</span>
++            <span class="flist__date muted">{{ f.creation }}</span>
++            <span class="flist__amount">{{ money(f.montant) }}€</span>
++          </button>
++        } @empty {
++          <p class="muted flist__empty">Rien à encaisser sur la période.</p>
++        }
++      </div>
++    </section>
++  </div>
++</section>
+diff --git a/src/app/features/dashboard/dashboard.scss b/src/app/features/dashboard/dashboard.scss
+new file mode 100644
+index 0000000..082716c
+--- /dev/null
++++ b/src/app/features/dashboard/dashboard.scss
+@@ -0,0 +1,231 @@
++@use 'variables' as *;
++@use 'mixins' as *;
++
++:host {
++  display: block;
++}
++
++.dash {
++  @include flex-column(var(--space-5));
++  animation: fade-in 0.25s ease both;
++
++  @include mobile {
++    gap: var(--space-4);
++  }
++}
++
++.dash__head {
++  @include flex-between;
++  gap: var(--space-3);
++  flex-wrap: wrap;
++}
++
++.dash__year {
++  @include flex(flex-start, center, var(--space-3));
++
++  strong {
++    font-size: var(--fs-lg);
++    color: var(--brand-deep);
++    min-width: 64px;
++    text-align: center;
++  }
++}
++
++.dash__month {
++  width: auto;
++  min-width: 160px;
++}
++
++// --- Indicateurs clés ------------------------------------------------------
++
++.kpis {
++  display: grid;
++  grid-template-columns: repeat(5, 1fr);
++  gap: var(--space-3);
++
++  @include tablet-down {
++    grid-template-columns: repeat(2, 1fr);
++  }
++}
++
++.kpi {
++  @include flex-column(2px);
++  padding: var(--space-4);
++
++  &__label {
++    font-size: var(--fs-xs);
++    text-transform: uppercase;
++    letter-spacing: 0.4px;
++    color: var(--text-muted);
++  }
++  &__value {
++    font-size: var(--fs-lg);
++    font-weight: 700;
++  }
++  &__sub {
++    font-size: var(--fs-xs);
++  }
++}
++
++// --- Lignes de cartes ------------------------------------------------------
++
++.dash__row {
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  gap: var(--space-4);
++  align-items: start;
++
++  @include tablet-down {
++    grid-template-columns: 1fr;
++  }
++}
++
++.section {
++  padding: var(--space-5);
++
++  @include mobile {
++    padding: var(--space-4);
++  }
++}
++
++.section__title {
++  font-size: var(--fs-md);
++  color: var(--brand-strong);
++  margin-bottom: var(--space-4);
++}
++
++// --- Heures ----------------------------------------------------------------
++
++.hours {
++  list-style: none;
++  margin: 0;
++  padding: 0;
++  @include flex-column(var(--space-2));
++
++  li {
++    display: grid;
++    grid-template-columns: 1fr auto auto;
++    gap: var(--space-3);
++    align-items: baseline;
++    padding-bottom: var(--space-2);
++    border-bottom: 1px solid var(--border);
++
++    &:last-child {
++      border-bottom: none;
++      padding-bottom: 0;
++    }
++
++    strong {
++      font-size: var(--fs-md);
++    }
++    em {
++      font-style: normal;
++      font-size: var(--fs-sm);
++    }
++  }
++}
++
++// --- Compteurs -------------------------------------------------------------
++
++.counters {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
++  gap: var(--space-3);
++}
++
++.counter {
++  @include flex-column(2px);
++  align-items: center;
++  text-align: center;
++  padding: var(--space-3) var(--space-2);
++  border-radius: var(--radius-md);
++  background: var(--surface-2);
++
++  &__num {
++    font-size: var(--fs-xl);
++    font-weight: 800;
++    line-height: 1;
++  }
++  &__label {
++    font-size: var(--fs-xs);
++    font-weight: 600;
++    color: var(--text);
++  }
++  &__over {
++    font-size: 0.7rem;
++  }
++}
++
++// --- Graphes ---------------------------------------------------------------
++
++.chart__svg {
++  width: 100%;
++  height: auto;
++  display: block;
++}
++
++.chart__axis {
++  stroke: var(--border-strong);
++  stroke-width: 1;
++}
++
++.chart__tick {
++  fill: var(--text-muted);
++  font-size: 9px;
++  font-family: var(--font);
++}
++
++.chart__legend {
++  @include flex-center;
++  flex-wrap: wrap;
++  gap: var(--space-3);
++  margin-top: var(--space-2);
++
++  .chart__year {
++    font-size: var(--fs-xs);
++    font-weight: 700;
++  }
++}
++
++// --- Listes de factures ----------------------------------------------------
++
++.flist {
++  @include flex-column(2px);
++  max-height: 320px;
++  overflow: auto;
++}
++
++.flist__row {
++  display: grid;
++  grid-template-columns: 1fr auto auto;
++  gap: var(--space-3);
++  align-items: center;
++  width: 100%;
++  padding: var(--space-2) var(--space-3);
++  border: none;
++  border-radius: var(--radius-sm);
++  background: transparent;
++  text-align: left;
++  cursor: pointer;
++  transition: var(--transition);
++
++  &:hover {
++    background: var(--brand-soft);
++  }
++}
++
++.flist__name {
++  font-weight: 600;
++  @include truncate;
++}
++.flist__date {
++  font-size: var(--fs-sm);
++}
++.flist__amount {
++  font-weight: 700;
++  white-space: nowrap;
++}
++.flist__empty {
++  padding: var(--space-3);
++  text-align: center;
++}
+diff --git a/src/app/features/dashboard/dashboard.ts b/src/app/features/dashboard/dashboard.ts
+new file mode 100644
+index 0000000..885c4f1
+--- /dev/null
++++ b/src/app/features/dashboard/dashboard.ts
+@@ -0,0 +1,218 @@
++import {
++  ChangeDetectionStrategy,
++  Component,
++  computed,
++  inject,
++  output,
++  signal,
++} from '@angular/core';
++import { FormsModule } from '@angular/forms';
++
++import { Statut } from '../../core/models';
++import { PlanningStore } from '../../core/services/planning-store.service';
++import { FactureLigne, StatsService } from '../../core/services/stats.service';
++import { MONTHS_FR } from '../../core/utils/calendar.utils';
++import { formatAmount } from '../../core/utils/money.utils';
++
++/** Géométrie commune des deux graphes (coordonnées du viewBox SVG). */
++const CHART = { w: 340, h: 170, padL: 6, padR: 6, padT: 12, padB: 22 } as const;
++const PLOT_W = CHART.w - CHART.padL - CHART.padR;
++const PLOT_H = CHART.h - CHART.padT - CHART.padB;
++
++/** Palette des années, alignée sur la charte. */
++const YEAR_COLORS = ['#aa82ba', '#5b7fb0', '#b0894e', '#6c8b65', '#a96fa3'];
++
++interface SeriesView {
++  year: number;
++  color: string;
++  line: string;
++  cumLine: string;
++  dots: Array<{ x: number; y: number }>;
++  cumDots: Array<{ x: number; y: number }>;
++}
++
++/**
++ * Tableau de bord financier : revenus, heures travaillées, estimations,
++ * factures du mois et graphes annuels. Reprend les indicateurs de l'application
++ * d'origine (calculés par `StatsService`) dans une présentation refondue,
++ * responsive et filtrable par année / mois.
++ */
++@Component({
++  selector: 'app-dashboard',
++  imports: [FormsModule],
++  templateUrl: './dashboard.html',
++  styleUrl: './dashboard.scss',
++  changeDetection: ChangeDetectionStrategy.OnPush,
++})
++export class Dashboard {
++  private readonly store = inject(PlanningStore);
++  private readonly stats = inject(StatsService);
++
++  /** Ouvre la journée correspondant à une date (clic sur une facture). */
++  readonly daySelected = output<string>();
++
++  protected readonly year = signal(new Date().getFullYear());
++  /** Mois sélectionné (1–12) ou null pour toute l'année. */
++  protected readonly month = signal<number | null>(null);
++
++  protected readonly months = MONTHS_FR;
++  protected readonly chartGeo = CHART;
++
++  private readonly entries = this.store.calendarEntries;
++
++  protected changeYear(delta: number): void {
++    this.year.update((y) => y + delta);
++  }
++
++  protected onMonth(value: string): void {
++    this.month.set(value === '' ? null : Number(value));
++  }
++
++  protected get periodLabel(): string {
++    return this.month() === null ? 'année' : 'mois';
++  }
++
++  // --- Indicateurs -----------------------------------------------------------
++
++  protected readonly alreadyPaid = computed(() =>
++    this.stats.alreadyPaid(this.entries(), this.year(), this.month()),
++  );
++  protected readonly notPaid = computed(() =>
++    this.stats.notPaid(this.entries(), this.year(), this.month()),
++  );
++  protected readonly helpers = computed(() =>
++    this.stats.helpers(this.entries(), this.year(), this.month()),
++  );
++  protected readonly estimate = computed(() =>
++    this.stats.estimate(this.entries(), this.year(), this.month()),
++  );
++  protected readonly total = computed(() =>
++    this.stats.totalRevenue(this.entries(), this.year(), this.month()),
++  );
++
++  protected readonly hours = computed(() => {
++    const e = this.entries();
++    const y = this.year();
++    const m = this.month();
++    return {
++      done: this.formatHours(e, y, m, false, true),
++      upcoming: this.formatHours(e, y, m, true, false),
++      period: this.formatHours(e, y, m, false, false),
++    };
++  });
++
++  private formatHours(
++    entries: ReturnType<typeof this.entries>,
++    year: number,
++    month: number | null,
++    fromNow: boolean,
++    untilNow: boolean,
++  ): { time: string; rate: number } {
++    const mins = this.stats.hoursWorked(entries, year, month, fromNow, untilNow);
++    const rate = this.stats.perHour(entries, year, month, fromNow, untilNow);
++    return { time: `${Math.trunc(mins / 60)}h ${mins % 60}min`, rate };
++  }
++
++  /** Montant net après abattement de 24 % (micro-entreprise). */
++  protected net(amount: number): number {
++    return Math.trunc(amount - amount * 0.24);
++  }
++
++  // --- Compteurs de statuts --------------------------------------------------
++
++  protected readonly counters = computed(() => {
++    const e = this.entries();
++    const y = this.year();
++    const m = this.month();
++    const reserve = this.stats.statutCount(e, Statut.Reserve, y, m);
++    const demande = this.stats.statutCount(e, Statut.Demande, y, m);
++    const essai = this.stats.statutCount(e, Statut.Essai, y, m);
++    const autre = this.stats.statutCount(e, Statut.Autre, y, m);
++    return [
++      { label: 'Mariages', still: reserve.still, over: reserve.over, showOver: true },
++      { label: 'Demandes', still: demande.still, over: demande.over, showOver: false },
++      { label: 'Essais', still: essai.still, over: essai.over, showOver: true },
++      { label: 'Autres', still: autre.still, over: autre.over, showOver: true },
++    ];
++  });
++
++  protected readonly finished = computed(() =>
++    this.stats.etapeCount(this.entries(), 999, this.year(), this.month()),
++  );
++
++  // --- Factures --------------------------------------------------------------
++
++  protected readonly paidFactures = computed(() =>
++    this.stats.monthFactures(this.entries(), this.year(), this.month()),
++  );
++  protected readonly missingFactures = computed(() =>
++    this.stats.monthFacturesMissing(this.entries(), this.year(), this.month()),
++  );
++
++  // --- Graphes ---------------------------------------------------------------
++
++  private readonly series = computed(() => this.stats.yearSeries(this.entries()));
++
++  protected readonly chart = computed(() => {
++    const series = this.series();
++    const now = new Date();
++    const currentYear = now.getFullYear();
++    const currentMonth = now.getMonth() + 1; // 1-12
++
++    let maxMonthly = 0;
++    let maxCum = 0;
++    const meta = series.map((s) => {
++      const count = s.year >= currentYear ? Math.min(currentMonth, 12) : 12;
++      for (let i = 0; i < count; i++) {
++        if (s.monthly[i] > maxMonthly) maxMonthly = s.monthly[i];
++        if (s.cumulative[i] > maxCum) maxCum = s.cumulative[i];
++      }
++      return { ...s, count };
++    });
++    maxMonthly = maxMonthly || 1;
++    maxCum = maxCum || 1;
++
++    const views: SeriesView[] = meta.map((s, idx) => {
++      const monthlyDots = this.dots(s.monthly, maxMonthly, s.count);
++      const cumDots = this.dots(s.cumulative, maxCum, s.count);
++      return {
++        year: s.year,
++        color: YEAR_COLORS[idx % YEAR_COLORS.length],
++        line: monthlyDots.map((d) => `${d.x},${d.y}`).join(' '),
++        cumLine: cumDots.map((d) => `${d.x},${d.y}`).join(' '),
++        dots: monthlyDots,
++        cumDots,
++      };
++    });
++
++    return { views, maxMonthly, maxCum, monthTicks: this.monthTicks() };
++  });
++
++  private dots(values: number[], max: number, count: number): Array<{ x: number; y: number }> {
++    const out: Array<{ x: number; y: number }> = [];
++    for (let i = 0; i < count; i++) {
++      out.push({
++        x: CHART.padL + (i * PLOT_W) / 11,
++        y: CHART.padT + PLOT_H - (values[i] / max) * PLOT_H,
++      });
++    }
++    return out;
++  }
++
++  private monthTicks(): Array<{ x: number; label: string }> {
++    return ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((label, i) => ({
++      x: CHART.padL + (i * PLOT_W) / 11,
++      label,
++    }));
++  }
++
++  protected readonly axisY = CHART.padT + PLOT_H;
++
++  protected money(value: number | string): string {
++    return formatAmount(value);
++  }
++
++  protected openDay(ligne: FactureLigne): void {
++    this.daySelected.emit(ligne.date);
++  }
++}
+diff --git a/src/app/features/journee/journee-detail.ts b/src/app/features/journee/journee-detail.ts
+index f7152a2..7c4eca0 100644
+--- a/src/app/features/journee/journee-detail.ts
++++ b/src/app/features/journee/journee-detail.ts
+@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
+ import { FormsModule } from '@angular/forms';
+ 
+ import { DocumentMode, Domaine, Etape, Facture, Journee, Presta, Statut } from '../../core/models';
++import { PlanningStore } from '../../core/services/planning-store.service';
+ import { PricingService } from '../../core/services/pricing.service';
+-import { maskFrDateInput } from '../../core/utils/date.utils';
++import { addDaysFr, maskFrDateInput, todayFrDate } from '../../core/utils/date.utils';
+ import { formatAmount } from '../../core/utils/money.utils';
+ import { statutClass, statutLabel } from '../../shared/statut-ui';
+ import { FrenchDatePipe } from '../../shared/pipes/french-date.pipe';
+@@ -26,6 +27,7 @@ import { DocumentRequest } from '../documents/document.types';
+ })
+ export class JourneeDetail {
+   private readonly pricing = inject(PricingService);
++  private readonly store = inject(PlanningStore);
+ 
+   /** Copie de travail de la journée à éditer. */
+   readonly journee = input.required<Journee>();
+@@ -82,7 +84,7 @@ export class JourneeDetail {
+     return maskFrDateInput(value ?? '');
+   }
+ 
+-  /** Applique le domaine sélectionné aux champs « mariage ». */
++  /** Applique le domaine sélectionné aux champs « mariage » et aux frais de déplacement. */
+   protected onDomainChange(event: Event): void {
+     const index = Number((event.target as HTMLSelectElement).value);
+     const domaine = this.domaines()[index];
+@@ -90,6 +92,38 @@ export class JourneeDetail {
+     this.data.mariage.domaine = domaine.domaine;
+     this.data.mariage.adresse = domaine.adresse;
+     this.data.mariage.codepostal = domaine.codepostal;
++    this.applyTravelFee(domaine.qte);
++  }
++
++  /**
++   * Crée ou met à jour la ligne « Frais de déplacement Jour-J » (km du domaine).
++   * Si aucun devis n'existe encore, l'initialise (numéro, dates) comme l'app
++   * d'origine, pour qu'il soit prêt à compléter.
++   */
++  private applyTravelFee(km: number): void {
++    const travel = (): Presta => ({
++      nom: 'Frais de déplacement Jour-J (Aller/Retour)',
++      en: 'D-Day Travel Expenses (Round Trip)',
++      kilorly: true,
++      prix: 0.4,
++      qte: km,
++    });
++
++    const devis = this.data.devis;
++    if (devis?.creation && devis.prestas) {
++      const existing = devis.prestas.find((p) => (p.nom ?? '').includes('déplacement Jour-J'));
++      if (existing) existing.qte = km;
++      else devis.prestas.push(travel());
++    } else {
++      const today = todayFrDate();
++      this.data.devis = {
++        annee: String(new Date().getFullYear()),
++        creation: today,
++        echeance: addDaysFr(today, 14),
++        numero: this.store.nextNumbers().devis,
++        prestas: [travel()],
++      };
++    }
+   }
+ 
+   // --- Documents & récapitulatif --------------------------------------------
+-- 
+2.43.0
+
