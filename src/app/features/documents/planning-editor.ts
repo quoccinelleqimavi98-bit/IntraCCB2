@@ -107,16 +107,17 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     return JSON.stringify({ state: this.state, lang: this.lang });
   }
 
-  /** Retour : demande confirmation si des modifications sont en cours. */
-  protected async close(): Promise<void> {
+  /** Retour : demande confirmation si modifs en cours. Renvoie `true` si la vue se ferme. */
+  async attemptClose(): Promise<boolean> {
     if (this.fingerprint() === this.snapshot) {
       this.closed.emit();
-      return;
+      return true;
     }
     const choice = await this.dialog.confirmSave();
-    if (choice === 'cancel') return;
+    if (choice === 'cancel') return false;
     if (choice === 'save') this.save();
     else this.closed.emit();
+    return true;
   }
 
   ngAfterViewInit(): void {

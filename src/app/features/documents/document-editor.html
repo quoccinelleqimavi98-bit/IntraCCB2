@@ -1,7 +1,7 @@
 <div class="editor" [class.editor--preview]="viewMode() === 'preview'">
   <div class="editor__bar">
     <header class="editor__head">
-      <button class="btn btn--ghost btn--sm" (click)="close()">‹ Retour</button>
+      <button class="btn btn--ghost btn--sm" (click)="attemptClose()">‹ Retour</button>
       <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
       <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
     </header>

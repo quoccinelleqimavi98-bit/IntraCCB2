@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Etape, Journee, Statut } from './core/models';
@@ -42,6 +52,10 @@ export class App {
   private readonly auth = inject(AuthService);
   private readonly store = inject(PlanningStore);
   private readonly dialog = inject(DialogService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private readonly docEditorRef = viewChild(DocumentEditor);
+  private readonly planEditorRef = viewChild(PlanningEditor);
 
   protected readonly authenticated = this.auth.authenticated;
   protected readonly loading = this.store.loading;
@@ -76,10 +90,73 @@ export class App {
   private snapshot = '';
   private eventIndex = 0;
 
+  /** Une entrée d'historique « sentinelle » est en place (on est en sous-vue). */
+  private armed = false;
+  /** Ignore le prochain `popstate` (déclenché par notre propre `history.back`). */
+  private ignorePop = false;
+
   protected passphrase = '';
 
   constructor() {
     if (this.authenticated()) this.init();
+
+    // Le bouton « retour » du navigateur / mobile remonte d'un niveau dans
+    // l'app (éditeur → fiche → accueil) au lieu de quitter la page. On maintient
+    // une entrée d'historique tant qu'une sous-vue est ouverte.
+    effect(() => {
+      const depth = this.viewDepth();
+      untracked(() => this.syncHistory(depth));
+    });
+
+    const onPop = (): void => this.onPopState();
+    window.addEventListener('popstate', onPop);
+    this.destroyRef.onDestroy(() => window.removeEventListener('popstate', onPop));
+  }
+
+  // --- Bouton retour matériel / navigateur ----------------------------------
+
+  /** Profondeur de navigation : 0 accueil, 1 fiche, 2 éditeur. */
+  private viewDepth(): number {
+    if (this.documentRequest() !== null || this.planningOpen()) return 2;
+    if (this.selected() !== null) return 1;
+    return 0;
+  }
+
+  /** Met l'historique en phase avec la profondeur (pose/retire la sentinelle). */
+  private syncHistory(depth: number): void {
+    if (depth > 0 && !this.armed) {
+      this.armed = true;
+      history.pushState({ ccb: true }, '');
+    } else if (depth === 0 && this.armed) {
+      this.armed = false;
+      this.ignorePop = true;
+      history.back();
+    }
+  }
+
+  private onPopState(): void {
+    if (this.ignorePop) {
+      this.ignorePop = false;
+      return;
+    }
+    if (!this.armed) return; // pas en sous-vue : on laisse le navigateur agir
+    this.armed = false; // notre sentinelle vient d'être consommée
+    void this.goUp().then(() => this.syncHistory(this.viewDepth()));
+  }
+
+  /** Exécute l'action « retour » de la vue courante (avec garde-fou éventuel). */
+  private async goUp(): Promise<void> {
+    if (this.documentRequest() !== null) {
+      const editor = this.docEditorRef();
+      if (editor) await editor.attemptClose();
+      else this.onDocumentClosed();
+    } else if (this.planningOpen()) {
+      const editor = this.planEditorRef();
+      if (editor) await editor.attemptClose();
+      else this.onPlanningClosed();
+    } else if (this.selected() !== null) {
+      await this.closeFiche();
+    }
   }
 
   protected unlock(): void {

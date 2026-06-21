@@ -48,12 +48,11 @@
   .ligne {
     border-bottom: 1px solid black;
     width: 90%;
-    display: flex;
-    margin: auto;
+    margin: 4px auto 0;
   }
 
   .content {
-    padding: 16px 15px 0;
+    padding: 12px 15px 0;
   }
 
   .none {
@@ -96,6 +95,10 @@
       text-transform: uppercase;
       line-height: 1.15;
       padding: 6px 1px;
+      // Les intitulés d'un seul mot restent sur une ligne (coupe aux espaces only).
+      word-break: normal;
+      overflow-wrap: normal;
+      hyphens: none;
     }
 
     tbody td {

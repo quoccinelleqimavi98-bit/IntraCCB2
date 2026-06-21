@@ -17,9 +17,7 @@
           <table class="ptable">
             <thead>
               <tr>
-                <th class="ptable__person">
-                  {{ multiArtist() ? entry.artist.prenom : fr() ? 'Invitées' : 'Guests' }}
-                </th>
+                <th class="ptable__person">{{ fr() ? 'Passage' : 'Order' }}</th>
                 @for (h of headers; track $index) {
                   <th>{{ fr() ? h.fr : h.en }}</th>
                 }

@@ -147,16 +147,17 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     });
   }
 
-  /** Retour : demande confirmation si des modifications sont en cours. */
-  protected async close(): Promise<void> {
+  /** Retour : demande confirmation si modifs en cours. Renvoie `true` si la vue se ferme. */
+  async attemptClose(): Promise<boolean> {
     if (this.fingerprint() === this.snapshot) {
       this.closed.emit();
-      return;
+      return true;
     }
     const choice = await this.dialog.confirmSave();
-    if (choice === 'cancel') return;
+    if (choice === 'cancel') return false;
     if (choice === 'save') this.save();
     else this.closed.emit();
+    return true;
   }
 
   protected get isDevis(): boolean {
@@ -204,18 +205,9 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       });
     } else {
       this.addDevisToFacture(data);
-      if (!data.factures.some((f) => f.paiementPrestas)) {
-        let providers = 0;
-        for (const presta of data.planning?.prestas ?? []) {
-          if (presta.artisteIndex !== 0) providers += Number(presta.prix ?? 0);
-        }
-        for (const presta of data.devis?.prestas ?? []) {
-          if (presta.nom?.includes('renfort')) providers += this.pricing.lineTotal(presta);
-        }
-        this.values.paiementPrestas = providers;
-        this.values.solde = this.total() - Number(this.values.acompte || 0) - providers;
-        this.values.realsold = 0;
-      }
+      this.values.paiementPrestas = 0;
+      this.values.solde = this.total() - Number(this.values.acompte || 0);
+      this.values.realsold = 0;
     }
   }
 
@@ -243,7 +235,20 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   private addDevisToFacture(data: Journee): void {
     const arrhes = this.prestas.find((p) => p.nom === 'Paiement Arrhes');
     if (arrhes) arrhes.qte = 0;
-    for (const presta of data.devis?.prestas ?? []) this.mergePresta(presta);
+
+    // Unités réalisées par un renfort (planning) : exclues de la facture cliente.
+    const renforts = this.renfortUnitsByName(data);
+    for (const presta of data.devis?.prestas ?? []) {
+      const nom = presta.nom ?? '';
+      if (nom.includes('renfort')) continue; // ligne de renfort : non facturée ici
+      let qte = presta.qte;
+      if (qte !== '?' && !presta.kilorly) {
+        const done = renforts.get(nom) ?? 0;
+        if (done > 0) qte = Math.max(0, Number(qte) - done);
+      }
+      if (qte !== '?' && Number(qte) <= 0) continue; // entièrement faite par un renfort
+      this.mergePresta({ ...presta, qte });
+    }
 
     let prior = 0;
     for (const facture of data.factures) {
@@ -257,6 +262,17 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       }
     }
     this.values.acompte = prior;
+  }
+
+  /** Nombre d'unités, par nom de prestation, réalisées par un renfort (planning). */
+  private renfortUnitsByName(data: Journee): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const presta of data.planning?.prestas ?? []) {
+      if (presta.artisteIndex !== 0 && presta.nom) {
+        counts.set(presta.nom, (counts.get(presta.nom) ?? 0) + 1);
+      }
+    }
+    return counts;
   }
 
   private factureContribution(facture: Facture): number {
