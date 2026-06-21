@@ -1,0 +1,487 @@
+From 2c9d21bbab01f940aba584f73850949b16fba86b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 21 Jun 2026 09:47:10 +0000
+Subject: [PATCH] =?UTF-8?q?fix(documents):=20optimisation=20mobile=20de=20?=
+ =?UTF-8?q?l'=C3=A9diteur=20+=20lisibilit=C3=A9=20du=20PDF?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Mobile :
+- éditeur devis/facture repensé pour tenir dans l'écran : bascule « Édition /
+  Aperçu », prestations affichées en cartes (désignation pleine largeur,
+  −/+/prix/réduc/total), formulaires en une colonne.
+- aperçu PDF mis à l'échelle de la largeur disponible (ResizeObserver) — il
+  tient désormais entièrement dans l'écran, desktop comme mobile.
+
+PDF :
+- chargement de la police Cardo (réclamée par le style d'origine) → texte plus
+  étroit et élégant, fin des débordements.
+- logo réduit et blocs émetteur / cliente resserrés (police plus petite,
+  largeur contrainte, retour à la ligne) : les infos longues ne débordent plus.
+
+Bouton icône compact (.icon-btn--sm) et colonnes de l'éditeur ajustées pour
+laisser de la place à la désignation sur desktop.
+
+Build dev + prod OK ; rendu validé par captures (desktop + mobile).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ .../features/documents/document-editor.html   |  63 ++++++---
+ .../features/documents/document-editor.scss   | 128 ++++++++++++++----
+ src/app/features/documents/document-editor.ts |  45 +++++-
+ src/app/features/documents/document-pdf.scss  |  13 +-
+ src/index.html                                |   2 +-
+ src/styles/_components.scss                   |   6 +
+ 6 files changed, 207 insertions(+), 50 deletions(-)
+
+diff --git a/src/app/features/documents/document-editor.html b/src/app/features/documents/document-editor.html
+index 052b815..45023f6 100644
+--- a/src/app/features/documents/document-editor.html
++++ b/src/app/features/documents/document-editor.html
+@@ -1,10 +1,15 @@
+-<div class="editor">
++<div class="editor" [class.editor--preview]="viewMode() === 'preview'">
+   <header class="editor__head">
+     <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+     <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
+     <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
+   </header>
+ 
++  <div class="editor__viewtoggle">
++    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
++    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++  </div>
++
+   <div class="editor__panes">
+     <div class="editor__form">
+       <section class="card section">
+@@ -50,6 +55,11 @@
+               <p class="presta-titre">{{ presta.nom }}</p>
+             } @else {
+               <div class="presta-row">
++                <input
++                  class="input presta-nom"
++                  [(ngModel)]="presta.nom"
++                  placeholder="Désignation"
++                />
+                 <div class="qte">
+                   <button
+                     class="icon-btn icon-btn--sm"
+@@ -62,12 +72,17 @@
+                   <button class="icon-btn icon-btn--sm" (click)="addQte(presta)">+</button>
+                 </div>
+                 <input
+-                  class="input presta-nom"
+-                  [(ngModel)]="presta.nom"
+-                  placeholder="Désignation"
++                  class="input presta-prix"
++                  [(ngModel)]="presta.prix"
++                  inputmode="decimal"
++                  placeholder="Prix"
++                />
++                <input
++                  class="input presta-reduc"
++                  [(ngModel)]="presta.reduc"
++                  inputmode="numeric"
++                  placeholder="%"
+                 />
+-                <input class="input presta-prix" [(ngModel)]="presta.prix" placeholder="Prix" />
+-                <input class="input presta-reduc" [(ngModel)]="presta.reduc" placeholder="%" />
+                 <span class="presta-total">{{ lineLabel(presta) }}</span>
+               </div>
+             }
+@@ -99,15 +114,15 @@
+           <div class="grid">
+             <div class="field">
+               <label>Déjà versé</label>
+-              <input class="input" [(ngModel)]="values.acompte" />
++              <input class="input" [(ngModel)]="values.acompte" inputmode="decimal" />
+             </div>
+             <div class="field">
+               <label>Solde</label>
+-              <input class="input" [(ngModel)]="values.solde" />
++              <input class="input" [(ngModel)]="values.solde" inputmode="decimal" />
+             </div>
+             <div class="field">
+               <label>Réellement versé</label>
+-              <input class="input" [(ngModel)]="values.realsold" />
++              <input class="input" [(ngModel)]="values.realsold" inputmode="decimal" />
+             </div>
+             <div class="field">
+               <label>Mode de paiement</label>
+@@ -115,7 +130,7 @@
+             </div>
+             <div class="field">
+               <label>Paiement prestataires</label>
+-              <input class="input" [(ngModel)]="values.paiementPrestas" />
++              <input class="input" [(ngModel)]="values.paiementPrestas" inputmode="decimal" />
+             </div>
+             <label class="checkbox">
+               <input type="checkbox" [(ngModel)]="acquittee" />
+@@ -131,16 +146,24 @@
+     </div>
+ 
+     <div class="editor__preview">
+-      <div class="preview-scroll">
+-        <app-document-pdf
+-          [mode]="mode()"
+-          [lang]="lang"
+-          [prestas]="prestas"
+-          [client]="journee().client"
+-          [values]="values"
+-          [modedevis]="modedevis"
+-          [acquittee]="acquittee"
+-        />
++      <div class="preview-scroll" #previewHost>
++        <div
++          class="preview-stage"
++          [style.width.px]="595 * previewScale()"
++          [style.height.px]="840 * previewScale()"
++        >
++          <div class="preview-zoom" [style.transform]="'scale(' + previewScale() + ')'">
++            <app-document-pdf
++              [mode]="mode()"
++              [lang]="lang"
++              [prestas]="prestas"
++              [client]="journee().client"
++              [values]="values"
++              [modedevis]="modedevis"
++              [acquittee]="acquittee"
++            />
++          </div>
++        </div>
+       </div>
+     </div>
+   </div>
+diff --git a/src/app/features/documents/document-editor.scss b/src/app/features/documents/document-editor.scss
+index 355c2ee..6cc3257 100644
+--- a/src/app/features/documents/document-editor.scss
++++ b/src/app/features/documents/document-editor.scss
+@@ -20,18 +20,23 @@
+     font-size: var(--fs-lg);
+     color: var(--brand-deep);
+     @include truncate;
++
++    @include mobile {
++      font-size: var(--fs-md);
++    }
+   }
+ }
+ 
++// Bascule Édition / Aperçu — mobile uniquement
++.editor__viewtoggle {
++  display: none;
++}
++
+ .editor__panes {
+   display: grid;
+-  grid-template-columns: minmax(0, 1fr) auto;
++  grid-template-columns: minmax(440px, 1fr) minmax(300px, 540px);
+   gap: var(--space-5);
+   align-items: start;
+-
+-  @include tablet-down {
+-    grid-template-columns: 1fr;
+-  }
+ }
+ 
+ .editor__form {
+@@ -79,6 +84,8 @@
+   }
+ }
+ 
++// --- Lignes de prestation --------------------------------------------------
++
+ .prestas {
+   @include flex-column(var(--space-2));
+ }
+@@ -93,32 +100,20 @@
+ 
+ .presta-row {
+   display: grid;
+-  grid-template-columns: auto 1fr 72px 56px 64px;
++  grid-template-columns: minmax(0, 1fr) auto 62px 46px 58px;
+   gap: var(--space-2);
+   align-items: center;
+-
+-  @include mobile {
+-    grid-template-columns: auto 1fr 56px;
+-
+-    .presta-nom {
+-      grid-column: 1 / -1;
+-      order: -1;
+-    }
+-    .presta-total {
+-      grid-column: 1 / -1;
+-    }
+-  }
+ }
+ 
+ .qte {
+   display: flex;
+   align-items: center;
+-  gap: 4px;
++  gap: 2px;
+ }
+ 
+ .qte-input {
+-  width: 46px;
+-  padding: 0 4px;
++  width: 40px;
++  padding: 0 2px;
+   text-align: center;
+ }
+ 
+@@ -157,13 +152,11 @@
+   font-weight: 600;
+ }
+ 
++// --- Aperçu PDF ------------------------------------------------------------
++
+ .editor__preview {
+   position: sticky;
+   top: 76px;
+-
+-  @include tablet-down {
+-    position: static;
+-  }
+ }
+ 
+ .preview-scroll {
+@@ -176,9 +169,94 @@
+   box-shadow: var(--shadow-sm);
+ }
+ 
++.preview-stage {
++  margin: 0 auto;
++  overflow: hidden;
++}
++
++.preview-zoom {
++  width: 595px;
++  transform-origin: top left;
++}
++
+ .editor__actions {
+   display: flex;
+   flex-wrap: wrap;
+   gap: var(--space-3);
+   justify-content: center;
+ }
++
++// --- Mobile / tablette -----------------------------------------------------
++
++@include tablet-down {
++  .editor__viewtoggle {
++    display: flex;
++    gap: 4px;
++    padding: 4px;
++    background: var(--brand-soft);
++    border-radius: var(--radius-full);
++
++    button {
++      flex: 1;
++      border: none;
++      background: transparent;
++      padding: 9px;
++      border-radius: var(--radius-full);
++      font-weight: 600;
++      color: var(--brand-strong);
++      cursor: pointer;
++      transition: var(--transition);
++
++      &.active {
++        background: var(--surface);
++        box-shadow: var(--shadow-sm);
++      }
++    }
++  }
++
++  .editor__panes {
++    grid-template-columns: 1fr;
++    gap: var(--space-4);
++  }
++
++  .editor:not(.editor--preview) .editor__preview {
++    display: none;
++  }
++  .editor--preview .editor__form {
++    display: none;
++  }
++
++  .editor__preview {
++    position: static;
++  }
++
++  .preview-scroll {
++    padding: var(--space-2);
++  }
++
++  // Une ligne de prestation = une carte (désignation pleine largeur)
++  .presta-row {
++    display: flex;
++    flex-wrap: wrap;
++    gap: var(--space-2);
++    padding: var(--space-2) var(--space-3);
++    border: 1px solid var(--border);
++    border-radius: var(--radius-md);
++    background: var(--surface-2);
++  }
++
++  .presta-nom {
++    flex: 1 1 100%;
++  }
++
++  .presta-prix,
++  .presta-reduc {
++    flex: 1;
++    text-align: center;
++  }
++
++  .presta-total {
++    margin-left: auto;
++    align-self: center;
++  }
++}
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index 381cb82..c5fab0f 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -1,4 +1,15 @@
+-import { Component, ElementRef, OnInit, inject, input, output } from '@angular/core';
++import {
++  AfterViewInit,
++  Component,
++  DestroyRef,
++  ElementRef,
++  OnInit,
++  inject,
++  input,
++  output,
++  signal,
++  viewChild,
++} from '@angular/core';
+ import { FormsModule } from '@angular/forms';
+ 
+ import {
+@@ -31,10 +42,12 @@ import { DocumentKind, DocumentValues } from './document.types';
+   templateUrl: './document-editor.html',
+   styleUrl: './document-editor.scss',
+ })
+-export class DocumentEditor implements OnInit {
++export class DocumentEditor implements OnInit, AfterViewInit {
+   private readonly pricing = inject(PricingService);
+   private readonly pdf = inject(PdfService);
+   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
++  private readonly destroyRef = inject(DestroyRef);
++  private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
+ 
+   readonly journee = input.required<Journee>();
+   readonly mode = input.required<DocumentKind>();
+@@ -66,6 +79,34 @@ export class DocumentEditor implements OnInit {
+   protected modedevis: 'Mariage' | 'Autre' = 'Mariage';
+   protected acquittee = false;
+ 
++  /** Vue active sur mobile : formulaire ou aperçu. */
++  protected readonly viewMode = signal<'form' | 'preview'>('form');
++  /** Échelle d'affichage de l'aperçu (1 sur desktop, réduit sur mobile). */
++  protected readonly previewScale = signal(1);
++
++  ngAfterViewInit(): void {
++    const host = this.previewHost()?.nativeElement;
++    if (!host) return;
++    const observer = new ResizeObserver(() => this.computeScale());
++    observer.observe(host);
++    this.destroyRef.onDestroy(() => observer.disconnect());
++    this.computeScale();
++  }
++
++  protected setView(mode: 'form' | 'preview'): void {
++    this.viewMode.set(mode);
++    queueMicrotask(() => this.computeScale());
++  }
++
++  /** Met l'aperçu à l'échelle de la largeur réellement disponible (595px = pleine taille). */
++  private computeScale(): void {
++    const host = this.previewHost()?.nativeElement;
++    if (!host) return;
++    const available = host.clientWidth - 24; // padding du conteneur
++    if (available < 50) return; // conteneur masqué : on garde l'échelle courante
++    this.previewScale.set(Math.max(0.3, Math.min(1, available / 595)));
++  }
++
+   ngOnInit(): void {
+     const data = this.journee();
+     const now = todayFrDate();
+diff --git a/src/app/features/documents/document-pdf.scss b/src/app/features/documents/document-pdf.scss
+index 159bfca..4997ae8 100644
+--- a/src/app/features/documents/document-pdf.scss
++++ b/src/app/features/documents/document-pdf.scss
+@@ -73,11 +73,11 @@
+   }
+ 
+   .logo {
+-    width: 30%;
++    width: 21%;
+     margin: auto;
+     display: flex;
+     margin-top: 5px;
+-    margin-bottom: 10px;
++    margin-bottom: 8px;
+   }
+ 
+   .date {
+@@ -106,9 +106,18 @@
+     position: relative;
+   }
+ 
++  .cloe {
++    width: 48%;
++  }
+   .cloe p {
+     font-weight: bold;
+     position: relative;
++    font-size: 12px;
++    letter-spacing: 0.2px;
++    overflow-wrap: anywhere;
++  }
++  .cloe .nobold {
++    font-size: 11px;
+   }
+   .nobold {
+     font-weight: unset !important;
+diff --git a/src/index.html b/src/index.html
+index c708b76..dea0098 100644
+--- a/src/index.html
++++ b/src/index.html
+@@ -10,7 +10,7 @@
+     <link rel="manifest" href="manifest.json" />
+     <link rel="preload" as="image" href="logo.png" />
+     <link
+-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap"
++      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Cardo:wght@400;700&display=swap"
+       rel="stylesheet"
+     />
+   </head>
+diff --git a/src/styles/_components.scss b/src/styles/_components.scss
+index 0b352af..ac442dd 100644
+--- a/src/styles/_components.scss
++++ b/src/styles/_components.scss
+@@ -102,6 +102,12 @@
+     color: var(--brand-strong);
+     box-shadow: var(--shadow-sm);
+   }
++
++  &--sm {
++    width: 32px;
++    height: 32px;
++    font-size: var(--fs-md);
++  }
+ }
+ 
+ // --- Champs de formulaire --------------------------------------------------
+-- 
+2.43.0
+
