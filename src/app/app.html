@@ -66,30 +66,41 @@
         <p class="page__status page__status--error">{{ error() }}</p>
       }
 
-      <app-calendar (daySelected)="onDaySelected($event)" />
-
-      @if (upcoming(); as next) {
-        <button class="next card" (click)="openUpcoming()">
-          <span class="next__label muted">Prochain événement</span>
-          <span class="next__main">
-            <span class="chip" [class]="statutUi[next.statut].cssClass">
-              <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
-            </span>
-            <strong>{{ next.client.nom || '—' }}</strong>
-          </span>
-          <span class="next__date">{{ next.date | frenchDate }}</span>
+      <div class="hometabs">
+        <button [class.active]="homeTab() === 'calendrier'" (click)="homeTab.set('calendrier')">
+          Calendrier
         </button>
-      }
-
-      <div class="legend">
-        @for (statut of legendStatuts; track statut) {
-          <span class="chip" [class]="statutUi[statut].cssClass">
-            <span class="chip__dot"></span>{{ statutUi[statut].label }}
-          </span>
-        }
-        <span class="legend__mark legend__mark--essai">Manque essai</span>
-        <span class="legend__mark legend__mark--planning">Manque planning</span>
+        <button [class.active]="homeTab() === 'bilan'" (click)="homeTab.set('bilan')">Bilan</button>
       </div>
+
+      @if (homeTab() === 'calendrier') {
+        <app-calendar (daySelected)="onDaySelected($event)" />
+
+        @if (upcoming(); as next) {
+          <button class="next card" (click)="openUpcoming()">
+            <span class="next__label muted">Prochain événement</span>
+            <span class="next__main">
+              <span class="chip" [class]="statutUi[next.statut].cssClass">
+                <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
+              </span>
+              <strong>{{ next.client.nom || '—' }}</strong>
+            </span>
+            <span class="next__date">{{ next.date | frenchDate }}</span>
+          </button>
+        }
+
+        <div class="legend">
+          @for (statut of legendStatuts; track statut) {
+            <span class="chip" [class]="statutUi[statut].cssClass">
+              <span class="chip__dot"></span>{{ statutUi[statut].label }}
+            </span>
+          }
+          <span class="legend__mark legend__mark--essai">Manque essai</span>
+          <span class="legend__mark legend__mark--planning">Manque planning</span>
+        </div>
+      } @else {
+        <app-dashboard (daySelected)="onDaySelected($event)" />
+      }
     }
   </main>
 }

@@ -10,6 +10,7 @@ import { frenchLongDate, parseFrDate } from './core/utils/date.utils';
 import { deepClone } from './core/utils/object.utils';
 import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relance.utils';
 import { Calendar } from './features/calendar/calendar';
+import { Dashboard } from './features/dashboard/dashboard';
 import { DocumentEditor } from './features/documents/document-editor';
 import { DocumentRequest } from './features/documents/document.types';
 import { PlanningEditor } from './features/documents/planning-editor';
@@ -24,7 +25,15 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
  */
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, PlanningEditor, FrenchDatePipe],
+  imports: [
+    FormsModule,
+    Calendar,
+    Dashboard,
+    JourneeDetail,
+    DocumentEditor,
+    PlanningEditor,
+    FrenchDatePipe,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +52,9 @@ export class App {
 
   protected readonly legendStatuts = LEGEND_STATUTS;
   protected readonly statutUi = STATUT_UI;
+
+  /** Onglet de l'accueil : calendrier ou tableau de bord. */
+  protected readonly homeTab = signal<'calendrier' | 'bilan'>('calendrier');
 
   /** Journée en cours d'édition (copie de travail), ou null sur le calendrier. */
   protected readonly selected = signal<Journee | null>(null);

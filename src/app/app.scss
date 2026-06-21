@@ -85,6 +85,35 @@
   }
 }
 
+// --- Onglets de l'accueil --------------------------------------------------
+
+.hometabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--brand-soft);
+  border-radius: var(--radius-full);
+  align-self: center;
+  width: min(360px, 100%);
+
+  button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 9px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    color: var(--brand-strong);
+    cursor: pointer;
+    transition: var(--transition);
+
+    &.active {
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+}
+
 // --- Prochain événement ----------------------------------------------------
 
 .next {

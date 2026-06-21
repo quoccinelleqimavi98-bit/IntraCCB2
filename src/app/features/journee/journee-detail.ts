@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 import { FormsModule } from '@angular/forms';
 
 import { DocumentMode, Domaine, Etape, Facture, Journee, Presta, Statut } from '../../core/models';
+import { PlanningStore } from '../../core/services/planning-store.service';
 import { PricingService } from '../../core/services/pricing.service';
-import { maskFrDateInput } from '../../core/utils/date.utils';
+import { addDaysFr, maskFrDateInput, todayFrDate } from '../../core/utils/date.utils';
 import { formatAmount } from '../../core/utils/money.utils';
 import { statutClass, statutLabel } from '../../shared/statut-ui';
 import { FrenchDatePipe } from '../../shared/pipes/french-date.pipe';
@@ -26,6 +27,7 @@ import { DocumentRequest } from '../documents/document.types';
 })
 export class JourneeDetail {
   private readonly pricing = inject(PricingService);
+  private readonly store = inject(PlanningStore);
 
   /** Copie de travail de la journée à éditer. */
   readonly journee = input.required<Journee>();
@@ -82,7 +84,7 @@ export class JourneeDetail {
     return maskFrDateInput(value ?? '');
   }
 
-  /** Applique le domaine sélectionné aux champs « mariage ». */
+  /** Applique le domaine sélectionné aux champs « mariage » et aux frais de déplacement. */
   protected onDomainChange(event: Event): void {
     const index = Number((event.target as HTMLSelectElement).value);
     const domaine = this.domaines()[index];
@@ -90,6 +92,38 @@ export class JourneeDetail {
     this.data.mariage.domaine = domaine.domaine;
     this.data.mariage.adresse = domaine.adresse;
     this.data.mariage.codepostal = domaine.codepostal;
+    this.applyTravelFee(domaine.qte);
+  }
+
+  /**
+   * Crée ou met à jour la ligne « Frais de déplacement Jour-J » (km du domaine).
+   * Si aucun devis n'existe encore, l'initialise (numéro, dates) comme l'app
+   * d'origine, pour qu'il soit prêt à compléter.
+   */
+  private applyTravelFee(km: number): void {
+    const travel = (): Presta => ({
+      nom: 'Frais de déplacement Jour-J (Aller/Retour)',
+      en: 'D-Day Travel Expenses (Round Trip)',
+      kilorly: true,
+      prix: 0.4,
+      qte: km,
+    });
+
+    const devis = this.data.devis;
+    if (devis?.creation && devis.prestas) {
+      const existing = devis.prestas.find((p) => (p.nom ?? '').includes('déplacement Jour-J'));
+      if (existing) existing.qte = km;
+      else devis.prestas.push(travel());
+    } else {
+      const today = todayFrDate();
+      this.data.devis = {
+        annee: String(new Date().getFullYear()),
+        creation: today,
+        echeance: addDaysFr(today, 14),
+        numero: this.store.nextNumbers().devis,
+        prestas: [travel()],
+      };
+    }
   }
 
   // --- Documents & récapitulatif --------------------------------------------

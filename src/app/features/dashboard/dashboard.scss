@@ -1,0 +1,231 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.dash {
+  @include flex-column(var(--space-5));
+  animation: fade-in 0.25s ease both;
+
+  @include mobile {
+    gap: var(--space-4);
+  }
+}
+
+.dash__head {
+  @include flex-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.dash__year {
+  @include flex(flex-start, center, var(--space-3));
+
+  strong {
+    font-size: var(--fs-lg);
+    color: var(--brand-deep);
+    min-width: 64px;
+    text-align: center;
+  }
+}
+
+.dash__month {
+  width: auto;
+  min-width: 160px;
+}
+
+// --- Indicateurs clés ------------------------------------------------------
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-3);
+
+  @include tablet-down {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.kpi {
+  @include flex-column(2px);
+  padding: var(--space-4);
+
+  &__label {
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+  }
+  &__value {
+    font-size: var(--fs-lg);
+    font-weight: 700;
+  }
+  &__sub {
+    font-size: var(--fs-xs);
+  }
+}
+
+// --- Lignes de cartes ------------------------------------------------------
+
+.dash__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+
+  @include tablet-down {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section {
+  padding: var(--space-5);
+
+  @include mobile {
+    padding: var(--space-4);
+  }
+}
+
+.section__title {
+  font-size: var(--fs-md);
+  color: var(--brand-strong);
+  margin-bottom: var(--space-4);
+}
+
+// --- Heures ----------------------------------------------------------------
+
+.hours {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  @include flex-column(var(--space-2));
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-3);
+    align-items: baseline;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    strong {
+      font-size: var(--fs-md);
+    }
+    em {
+      font-style: normal;
+      font-size: var(--fs-sm);
+    }
+  }
+}
+
+// --- Compteurs -------------------------------------------------------------
+
+.counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--space-3);
+}
+
+.counter {
+  @include flex-column(2px);
+  align-items: center;
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+
+  &__num {
+    font-size: var(--fs-xl);
+    font-weight: 800;
+    line-height: 1;
+  }
+  &__label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--text);
+  }
+  &__over {
+    font-size: 0.7rem;
+  }
+}
+
+// --- Graphes ---------------------------------------------------------------
+
+.chart__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart__axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.chart__tick {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-family: var(--font);
+}
+
+.chart__legend {
+  @include flex-center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+
+  .chart__year {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+  }
+}
+
+// --- Listes de factures ----------------------------------------------------
+
+.flist {
+  @include flex-column(2px);
+  max-height: 320px;
+  overflow: auto;
+}
+
+.flist__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
+
+  &:hover {
+    background: var(--brand-soft);
+  }
+}
+
+.flist__name {
+  font-weight: 600;
+  @include truncate;
+}
+.flist__date {
+  font-size: var(--fs-sm);
+}
+.flist__amount {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.flist__empty {
+  padding: var(--space-3);
+  text-align: center;
+}

@@ -1,0 +1,169 @@
+<section class="dash">
+  <header class="dash__head">
+    <div class="dash__year">
+      <button class="icon-btn icon-btn--sm" (click)="changeYear(-1)" aria-label="Année précédente">
+        ‹
+      </button>
+      <strong>{{ year() }}</strong>
+      <button class="icon-btn icon-btn--sm" (click)="changeYear(1)" aria-label="Année suivante">
+        ›
+      </button>
+    </div>
+    <select
+      class="select dash__month"
+      [value]="month() ?? ''"
+      (change)="onMonth($any($event.target).value)"
+    >
+      <option value="">Toute l'année</option>
+      @for (m of months; track $index) {
+        <option [value]="$index + 1">{{ m }}</option>
+      }
+    </select>
+  </header>
+
+  <!-- Indicateurs clés -->
+  <div class="kpis">
+    <div class="kpi card">
+      <span class="kpi__label">Déjà encaissé</span>
+      <span class="kpi__value glow">{{ money(alreadyPaid()) }}€</span>
+    </div>
+    <div class="kpi card">
+      <span class="kpi__label">Reste à encaisser</span>
+      <span class="kpi__value">{{ money(notPaid()) }}€</span>
+    </div>
+    <div class="kpi card">
+      <span class="kpi__label">Total {{ periodLabel }}</span>
+      <span class="kpi__value">{{ money(total()) }}€</span>
+      <span class="kpi__sub muted">{{ money(net(total())) }}€ net</span>
+    </div>
+    <div class="kpi card">
+      <span class="kpi__label">Estimation {{ periodLabel }}</span>
+      <span class="kpi__value">{{ money(estimate()) }}€</span>
+      <span class="kpi__sub muted">{{ money(net(estimate())) }}€ net</span>
+    </div>
+    <div class="kpi card">
+      <span class="kpi__label">Paiement renforts</span>
+      <span class="kpi__value">{{ money(helpers()) }}€</span>
+    </div>
+  </div>
+
+  <!-- Heures & compteurs -->
+  <div class="dash__row">
+    <section class="card section">
+      <h3 class="section__title">Heures travaillées</h3>
+      <ul class="hours">
+        <li>
+          <span>Réalisé</span><strong class="glow">{{ hours().done.time }}</strong
+          ><em class="muted">{{ hours().done.rate }}€/h</em>
+        </li>
+        <li>
+          <span>À venir</span><strong>{{ hours().upcoming.time }}</strong
+          ><em class="muted">{{ hours().upcoming.rate }}€/h</em>
+        </li>
+        <li>
+          <span>Total {{ periodLabel }}</span
+          ><strong>{{ hours().period.time }}</strong
+          ><em class="muted">{{ hours().period.rate }}€/h</em>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card section">
+      <h3 class="section__title">Suivi</h3>
+      <div class="counters">
+        @for (c of counters(); track c.label) {
+          <div class="counter">
+            <span class="counter__num glow">{{ c.still }}</span>
+            <span class="counter__label">{{ c.label }}</span>
+            @if (c.showOver) {
+              <span class="counter__over muted">{{ c.over }} finis</span>
+            }
+          </div>
+        }
+        <div class="counter">
+          <span class="counter__num">{{ finished() }}</span>
+          <span class="counter__label">Terminées</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Graphes -->
+  <div class="dash__row">
+    @for (graph of ['monthly', 'cumulative']; track graph) {
+      <section class="card section chart">
+        <h3 class="section__title">
+          {{ graph === 'monthly' ? 'Revenus par mois' : 'Cumul annuel' }}
+        </h3>
+        <svg
+          class="chart__svg"
+          [attr.viewBox]="'0 0 ' + chartGeo.w + ' ' + chartGeo.h"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <line
+            class="chart__axis"
+            [attr.x1]="chartGeo.padL"
+            [attr.y1]="axisY"
+            [attr.x2]="chartGeo.w - chartGeo.padR"
+            [attr.y2]="axisY"
+          />
+          @for (t of chart().monthTicks; track $index) {
+            <text class="chart__tick" [attr.x]="t.x" [attr.y]="chartGeo.h - 6" text-anchor="middle">
+              {{ t.label }}
+            </text>
+          }
+          @for (s of chart().views; track s.year) {
+            <polyline
+              fill="none"
+              [attr.stroke]="s.color"
+              stroke-width="2"
+              stroke-linejoin="round"
+              [attr.points]="graph === 'monthly' ? s.line : s.cumLine"
+            />
+            @for (d of graph === 'monthly' ? s.dots : s.cumDots; track $index) {
+              <circle [attr.cx]="d.x" [attr.cy]="d.y" r="2.4" [attr.fill]="s.color" />
+            }
+          }
+        </svg>
+        <div class="chart__legend">
+          @for (s of chart().views; track s.year) {
+            <span class="chart__year" [style.color]="s.color">● {{ s.year }}</span>
+          }
+        </div>
+      </section>
+    }
+  </div>
+
+  <!-- Factures -->
+  <div class="dash__row">
+    <section class="card section">
+      <h3 class="section__title">Encaissé — {{ money(alreadyPaid()) }}€</h3>
+      <div class="flist">
+        @for (f of paidFactures(); track $index) {
+          <button class="flist__row" (click)="openDay(f)">
+            <span class="flist__name">{{ f.nom || '—' }}</span>
+            <span class="flist__date muted">{{ f.creation }}</span>
+            <span class="flist__amount glow">{{ money(f.montant) }}€</span>
+          </button>
+        } @empty {
+          <p class="muted flist__empty">Aucune facture sur la période.</p>
+        }
+      </div>
+    </section>
+
+    <section class="card section">
+      <h3 class="section__title">À encaisser — {{ money(notPaid()) }}€</h3>
+      <div class="flist">
+        @for (f of missingFactures(); track $index) {
+          <button class="flist__row" (click)="openDay(f)">
+            <span class="flist__name">{{ f.nom || '—' }}</span>
+            <span class="flist__date muted">{{ f.creation }}</span>
+            <span class="flist__amount">{{ money(f.montant) }}€</span>
+          </button>
+        } @empty {
+          <p class="muted flist__empty">Rien à encaisser sur la période.</p>
+        }
+      </div>
+    </section>
+  </div>
+</section>
