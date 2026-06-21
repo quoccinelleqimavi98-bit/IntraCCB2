@@ -1,0 +1,2052 @@
+From 6901ab98c8f65dc16ebf30f3fff6fff6db3c77e3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 21 Jun 2026 14:36:37 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20=C3=A9tape=204a=20=E2=80=94=20planning?=
+ =?UTF-8?q?=20du=20jour-J=20(algorithme=20+=20PDF=20+=20=C3=A9diteur)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Ajoute le planning du jour-J, dans le même esprit que les documents
+Devis/Facture : modèle propre, calcul centralisé, PDF fidèle et éditeur
+responsive avec aperçu en direct.
+
+- PlanningService : portage fidèle de l'algorithme d'horaires (calcul
+  d'enchaînement, remontée depuis la cérémonie / fin de prestations,
+  alignement des deux artistes, retouches) sur le modèle nommé
+  (Artist / PlanningSlot / PlanningPresta) au lieu des tableaux positionnels.
+- time.utils : helpers d'heures « HhMM » (pures).
+- PlanningPdf : rendu imprimable fidèle (en-têtes diagonaux, fusion de
+  cellules rowspan/colspan), resserré pour tenir dans la page A4.
+- PlanningEditor : éditeur mobile-first (paramètres, blocs par artiste,
+  gestion des artistes, lieu) avec bascule Édition/Aperçu sticky et aperçu
+  PDF mis à l'échelle (ResizeObserver), comme l'éditeur de documents.
+- Fiche journée : accès au planning depuis la section Documents.
+- DialogService.prompt pour renommer une ligne (nom personnalisé).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/app.html                              |   8 +
+ src/app/app.ts                                |  21 +-
+ src/app/core/services/dialog.service.ts       |  15 +
+ src/app/core/services/planning.service.ts     | 424 ++++++++++++++++++
+ src/app/core/utils/time.utils.ts              |  39 ++
+ .../features/documents/planning-editor.html   | 234 ++++++++++
+ .../features/documents/planning-editor.scss   | 324 +++++++++++++
+ src/app/features/documents/planning-editor.ts | 268 +++++++++++
+ src/app/features/documents/planning-pdf.html  |  86 ++++
+ src/app/features/documents/planning-pdf.scss  | 209 +++++++++
+ src/app/features/documents/planning-pdf.ts    | 125 ++++++
+ .../features/documents/planning.constants.ts  |  47 ++
+ src/app/features/documents/planning.types.ts  |  13 +
+ src/app/features/journee/journee-detail.html  |  13 +-
+ src/app/features/journee/journee-detail.ts    |   9 +
+ 15 files changed, 1830 insertions(+), 5 deletions(-)
+ create mode 100644 src/app/core/services/planning.service.ts
+ create mode 100644 src/app/core/utils/time.utils.ts
+ create mode 100644 src/app/features/documents/planning-editor.html
+ create mode 100644 src/app/features/documents/planning-editor.scss
+ create mode 100644 src/app/features/documents/planning-editor.ts
+ create mode 100644 src/app/features/documents/planning-pdf.html
+ create mode 100644 src/app/features/documents/planning-pdf.scss
+ create mode 100644 src/app/features/documents/planning-pdf.ts
+ create mode 100644 src/app/features/documents/planning.constants.ts
+ create mode 100644 src/app/features/documents/planning.types.ts
+
+diff --git a/src/app/app.html b/src/app/app.html
+index 42e308f..1defe64 100644
+--- a/src/app/app.html
++++ b/src/app/app.html
+@@ -35,6 +35,13 @@
+         (closed)="onDocumentClosed()"
+         (removed)="onDocumentRemoved(doc.factureIndex)"
+       />
++    } @else if (planningOpen()) {
++      <app-planning-editor
++        [journee]="selected()!"
++        [catalog]="catalog()"
++        (saved)="onPlanningSaved()"
++        (closed)="onPlanningClosed()"
++      />
+     } @else if (selected(); as journee) {
+       <app-journee-detail
+         [journee]="journee"
+@@ -50,6 +57,7 @@
+         (dayChanged)="changeDay($event)"
+         (eventChanged)="changeEvent($event)"
+         (openDocument)="openDocument($event)"
++        (openPlanning)="openPlanning()"
+       />
+     } @else {
+       @if (loading()) {
+diff --git a/src/app/app.ts b/src/app/app.ts
+index 3a804fc..ffbb694 100644
+--- a/src/app/app.ts
++++ b/src/app/app.ts
+@@ -12,6 +12,7 @@ import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relanc
+ import { Calendar } from './features/calendar/calendar';
+ import { DocumentEditor } from './features/documents/document-editor';
+ import { DocumentRequest } from './features/documents/document.types';
++import { PlanningEditor } from './features/documents/planning-editor';
+ import { JourneeDetail } from './features/journee/journee-detail';
+ import { FrenchDatePipe } from './shared/pipes/french-date.pipe';
+ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
+@@ -23,7 +24,7 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
+  */
+ @Component({
+   selector: 'app-root',
+-  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, FrenchDatePipe],
++  imports: [FormsModule, Calendar, JourneeDetail, DocumentEditor, PlanningEditor, FrenchDatePipe],
+   templateUrl: './app.html',
+   styleUrl: './app.scss',
+   changeDetection: ChangeDetectionStrategy.OnPush,
+@@ -51,6 +52,9 @@ export class App {
+   protected readonly nextDevis = signal(1);
+   protected readonly nextFacture = signal(1);
+ 
++  /** Éditeur de planning ouvert par-dessus la fiche. */
++  protected readonly planningOpen = signal(false);
++
+   /** Nombre d'événements le même jour que la sélection. */
+   protected readonly sameDayCount = computed(() => {
+     const current = this.selected();
+@@ -104,6 +108,21 @@ export class App {
+     this.documentRequest.set(null);
+   }
+ 
++  // --- Planning du jour-J ---------------------------------------------------
++
++  protected openPlanning(): void {
++    this.planningOpen.set(true);
++  }
++
++  /** Le planning a été appliqué à la copie de travail : retour à la fiche. */
++  protected onPlanningSaved(): void {
++    this.planningOpen.set(false);
++  }
++
++  protected onPlanningClosed(): void {
++    this.planningOpen.set(false);
++  }
++
+   // --- Sélection / ouverture d'une journée ----------------------------------
+ 
+   protected onDaySelected(date: string): void {
+diff --git a/src/app/core/services/dialog.service.ts b/src/app/core/services/dialog.service.ts
+index 4abdf29..12d75e1 100644
+--- a/src/app/core/services/dialog.service.ts
++++ b/src/app/core/services/dialog.service.ts
+@@ -21,4 +21,19 @@ export class DialogService {
+     });
+     return result.isConfirmed;
+   }
++
++  /** Demande une saisie texte. Résout à la valeur, ou `null` si annulé. */
++  async prompt(title: string, value = ''): Promise<string | null> {
++    const result = await Swal.fire({
++      title,
++      input: 'text',
++      inputValue: value,
++      showCancelButton: true,
++      confirmButtonText: 'Valider',
++      cancelButtonText: 'Annuler',
++      confirmButtonColor: '#aa82ba',
++      cancelButtonColor: '#7c7184',
++    });
++    return result.isConfirmed ? (result.value ?? '') : null;
++  }
+ }
+diff --git a/src/app/core/services/planning.service.ts b/src/app/core/services/planning.service.ts
+new file mode 100644
+index 0000000..5b0b269
+--- /dev/null
++++ b/src/app/core/services/planning.service.ts
+@@ -0,0 +1,424 @@
++import { Injectable } from '@angular/core';
++
++import { Artist, CatalogItem, Presta, PlanningPresta, PlanningSlot, SlotType } from '../models';
++import { addMinutes, diffMinutes, isEarlier, isHm } from '../utils/time.utils';
++
++/** État de travail de l'éditeur de planning (mutable). */
++export interface PlanningState {
++  artists: Artist[];
++  slots: PlanningSlot[];
++  prestas: PlanningPresta[];
++  ceremonie: string;
++  finPrestas: string;
++}
++
++/**
++ * Calcul des horaires du planning du jour-J. Reproduit fidèlement l'algorithme
++ * de l'application d'origine, mais sur le modèle nommé (Artist / PlanningSlot /
++ * PlanningPresta) au lieu des tableaux positionnels. Méthodes mutatives,
++ * appelées par l'éditeur.
++ */
++@Injectable({ providedIn: 'root' })
++export class PlanningService {
++  /** Prestations d'un artiste, dans l'ordre courant. */
++  prestasOf(state: PlanningState, artisteIndex: number): PlanningPresta[] {
++    return state.prestas.filter((p) => p.artisteIndex === artisteIndex);
++  }
++
++  /** Lignes (slots) d'un artiste, dans l'ordre courant. */
++  slotsOf(state: PlanningState, artisteIndex: number): PlanningSlot[] {
++    return state.slots.filter((s) => s.artisteIndex === artisteIndex);
++  }
++
++  private prestaOfSlot(state: PlanningState, slot: PlanningSlot): PlanningPresta | undefined {
++    return state.prestas.find((p) => p.slotIndex === slot.prestaIndex);
++  }
++
++  private firstSlot(state: PlanningState, artisteIndex: number): PlanningSlot | undefined {
++    return state.slots.find((s) => s.artisteIndex === artisteIndex);
++  }
++
++  private nextIndex(state: PlanningState): number {
++    return state.prestas.length ? Math.max(...state.prestas.map((p) => p.slotIndex)) + 1 : 0;
++  }
++
++  // --- Construction depuis un devis -----------------------------------------
++
++  /** Construit slots + prestations à partir des lignes de devis (mariée en dernier). */
++  build(devisPrestas: Presta[], catalog: CatalogItem[], state: PlanningState): void {
++    state.slots = [];
++    state.prestas = [];
++    let mariee: PlanningPresta | undefined;
++
++    for (const p of devisPrestas) {
++      const cat = catalog.find((c) => c.nom === p.nom);
++      if (!cat || !cat.time) continue;
++      const qte = p.qte === '?' ? 0 : Number(p.qte);
++      for (let i = 0; i < qte; i++) {
++        const press: PlanningPresta = {
++          ...p,
++          maquillage: cat.maquillage,
++          coiffure: cat.coiffure,
++          time: cat.time,
++          bride: cat.bride,
++          artisteIndex: 0,
++          slotIndex: this.nextIndex(state),
++        };
++        if (press.bride) {
++          mariee = { ...press };
++        } else {
++          state.prestas.push(press);
++          this.addSlot(state, press, 0);
++        }
++      }
++    }
++
++    if (mariee) {
++      mariee.slotIndex = this.nextIndex(state);
++      state.prestas.push(mariee);
++      this.addSlot(state, mariee, 0);
++    }
++  }
++
++  // --- Recalcul des horaires ------------------------------------------------
++
++  /** Recalcule tous les horaires (enchaînement des prestations par artiste). */
++  recompute(state: PlanningState): void {
++    for (let i = 0; i < state.artists.length; i++) {
++      const slots = this.slotsOf(state, i);
++      for (let j = 0; j < slots.length; j++) {
++        const slot = slots[j];
++        const presta = this.prestaOfSlot(state, slot);
++        if (!presta) continue;
++        if (j === 0) {
++          const debut = presta.maquillage ? slot.maquillage : presta.coiffure ? slot.coiffure : '';
++          slot.arrivee = addMinutes(debut, -20);
++          slot.installation = addMinutes(debut, -10);
++          slot.fin = addMinutes(debut, presta.time ?? 0);
++        } else {
++          const debut = slots[j - 1].fin;
++          slot.maquillage = presta.maquillage ? debut : '';
++          slot.coiffure = presta.coiffure ? debut : '';
++          slot.fin = addMinutes(debut, presta.time ?? 0);
++        }
++      }
++    }
++    // Réordonne les prestations dans l'ordre des slots.
++    const ordered = state.slots
++      .map((s) => state.prestas.find((p) => p.slotIndex === s.prestaIndex))
++      .filter((p): p is PlanningPresta => !!p);
++    state.prestas = ordered;
++  }
++
++  /** Rafraîchit : back-calc depuis cérémonie/fin de prestations, sinon recalcul simple. */
++  refresh(state: PlanningState): void {
++    if (isHm(state.ceremonie)) {
++      state.slots.forEach((s) => (s.ceremonie = state.ceremonie));
++      this.changeForCeremonie(state);
++    } else if (isHm(state.finPrestas)) {
++      state.slots.forEach((s) => (s.ceremonie = ''));
++      this.changeForCeremonie(state);
++    } else {
++      state.slots.forEach((s) => (s.ceremonie = ''));
++      this.recompute(state);
++    }
++  }
++
++  // --- Réactions aux saisies de l'éditeur -----------------------------------
++
++  /** Saisie de l'heure de cérémonie. */
++  onCeremonieChange(state: PlanningState): void {
++    if (!isHm(state.ceremonie)) return;
++    state.slots.forEach((s) => (s.ceremonie = state.ceremonie));
++    this.changeForCeremonie(state);
++  }
++
++  /** Saisie de la fin de prestations. */
++  onFinPrestasChange(state: PlanningState): void {
++    if (isHm(state.finPrestas)) this.changeForCeremonie(state);
++  }
++
++  /** Saisie de l'heure d'arrivée d'un artiste. */
++  onArriveeChange(state: PlanningState, i: number): void {
++    const value = state.artists[i]?.arrivee ?? '';
++    if (isHm(value)) {
++      this.changeForCeremonie(state);
++    } else if (value === '') {
++      if (isHm(state.ceremonie)) this.onCeremonieChange(state);
++      else if (isHm(state.finPrestas)) this.changeForCeremonie(state);
++      state.slots.forEach((s) => (s.retouches = ''));
++    }
++  }
++
++  /** Saisie de l'heure de retouches d'un artiste. */
++  onRetoucheChange(state: PlanningState, i: number): void {
++    const value = state.artists[i]?.retouches ?? '';
++    if (isHm(value)) {
++      this.slotsOf(state, i).forEach((s) => (s.retouches = value));
++    } else if (value === '') {
++      this.slotsOf(state, i).forEach((s) => (s.retouches = ''));
++      if (isHm(state.ceremonie)) this.onCeremonieChange(state);
++      else if (isHm(state.finPrestas)) this.changeForCeremonie(state);
++    }
++  }
++
++  /** Saisie de l'heure de disponibilité d'un artiste. */
++  onDispoChange(state: PlanningState, i: number): void {
++    const value = state.artists[i]?.disponibilite ?? '';
++    if (isHm(value)) this.slotsOf(state, i).forEach((s) => (s.disponibilite = value));
++    else if (value === '') this.slotsOf(state, i).forEach((s) => (s.disponibilite = ''));
++  }
++
++  /** Saisie de la durée d'une prestation (minutes). */
++  onTimeChange(state: PlanningState, presta: PlanningPresta): void {
++    const raw = String(presta.time ?? '');
++    if (!/^[0-9]+$/.test(raw)) return;
++    presta.time = parseInt(raw, 10);
++    this.refresh(state);
++  }
++
++  /** Calcule les heures de début en remontant depuis la cérémonie / fin de prestations. */
++  private changeForCeremonie(state: PlanningState): void {
++    const { artists, finPrestas } = state;
++    for (let c = 0; c < artists.length; c++) {
++      const inv = this.firstSlot(state, c);
++      if (!inv) continue;
++      const presta = this.prestaOfSlot(state, inv);
++
++      if (artists[c].arrivee === '') {
++        let temps = state.ceremonie;
++        let total = -60;
++        if (isHm(finPrestas)) {
++          total = 0;
++          temps = finPrestas;
++        }
++        const ap = this.prestasOf(state, c);
++        if (ap.length > 0) {
++          ap.forEach((p) => (total -= p.time ?? 0));
++          temps = addMinutes(temps, total);
++          inv.maquillage = presta?.maquillage ? temps : '';
++          inv.coiffure = presta?.coiffure ? temps : '';
++        }
++      } else {
++        inv.maquillage = presta?.maquillage ? addMinutes(artists[c].arrivee, 30) : '';
++        inv.coiffure = presta?.coiffure ? addMinutes(artists[c].arrivee, 30) : '';
++      }
++    }
++
++    if (
++      artists[0]?.arrivee === '' &&
++      artists[1]?.arrivee === '' &&
++      this.prestasOf(state, 0).length > 0 &&
++      this.prestasOf(state, 1).length > 0
++    ) {
++      this.adaptStart(state);
++    } else {
++      this.recompute(state);
++    }
++  }
++
++  /** Aligne les heures de début des deux premiers artistes. */
++  private adaptStart(state: PlanningState): void {
++    const second = this.slotsOf(state, 1);
++    if (second.length === 0) {
++      this.recompute(state);
++      return;
++    }
++    const first0 = this.firstSlot(state, 0);
++    const first1 = this.firstSlot(state, 1);
++    if (!first0 || !first1) {
++      this.recompute(state);
++      return;
++    }
++    const debut1 = first0.maquillage || first0.coiffure;
++    const debut2 = first1.maquillage || first1.coiffure;
++    if (debut1 !== debut2) {
++      const ecart = diffMinutes(debut1, debut2);
++      if (isEarlier(debut1, debut2)) {
++        const nh = addMinutes(debut2, -ecart);
++        if (first1.maquillage !== '') first1.maquillage = nh;
++        if (first1.coiffure !== '') first1.coiffure = nh;
++      } else {
++        const nh = addMinutes(debut1, -ecart);
++        if (first0.maquillage !== '') first0.maquillage = nh;
++        if (first0.coiffure !== '') first0.coiffure = nh;
++      }
++      this.recompute(state);
++      this.adaptRetouches(state);
++    }
++  }
++
++  /** Place les retouches sur l'artiste qui termine le plus tôt. */
++  private adaptRetouches(state: PlanningState): void {
++    const a0 = this.slotsOf(state, 0);
++    const a1 = this.slotsOf(state, 1);
++    const last0 = a0[a0.length - 1];
++    const last1 = a1[a1.length - 1];
++    if (!last0 || !last1) return;
++    if (isEarlier(last0.fin, last1.fin)) {
++      a0.forEach((s) => (s.retouches = last1.fin));
++      a1.forEach((s) => (s.retouches = ''));
++    } else {
++      a1.forEach((s) => (s.retouches = last0.fin));
++      a0.forEach((s) => (s.retouches = ''));
++    }
++  }
++
++  // --- Mutations ------------------------------------------------------------
++
++  /** Ajoute une ligne (slot) pour une prestation et un artiste. */
++  addSlot(state: PlanningState, presta: PlanningPresta, artisteIndex: number): void {
++    const { artists, slots } = state;
++    const existing = this.slotsOf(state, artisteIndex);
++    const artist = artists[artisteIndex];
++
++    if (existing.length === 0) {
++      const arrivee = artist?.arrivee ? artist.arrivee : '8h30';
++      const installation = addMinutes(arrivee, 10);
++      const debut = addMinutes(arrivee, 20);
++      slots.push({
++        type: presta.bride ? SlotType.Mariee : SlotType.Invitee,
++        arrivee,
++        installation,
++        maquillage: presta.maquillage ? debut : '',
++        coiffure: presta.coiffure ? debut : '',
++        fin: addMinutes(debut, presta.time ?? 0),
++        retouches: artist?.retouches ?? '',
++        disponibilite: artist?.disponibilite ?? '',
++        ceremonie: state.ceremonie || '',
++        artisteIndex,
++        prestaIndex: presta.slotIndex,
++      });
++    } else {
++      const last = existing[existing.length - 1];
++      slots.push({
++        type: presta.bride ? SlotType.Mariee : SlotType.Invitee,
++        arrivee: '',
++        installation: '',
++        maquillage: presta.maquillage ? last.fin : '',
++        coiffure: presta.coiffure ? last.fin : '',
++        fin: addMinutes(last.fin, presta.time ?? 0),
++        retouches: artist?.retouches ?? '',
++        disponibilite: artist?.disponibilite ?? '',
++        ceremonie: state.ceremonie || '',
++        artisteIndex,
++        prestaIndex: presta.slotIndex,
++      });
++    }
++    this.refresh(state);
++  }
++
++  /** Ajoute une prestation vierge (45 min) pour un artiste. */
++  addPresta(state: PlanningState, artisteIndex: number): void {
++    const template = this.prestasOf(state, artisteIndex)[0];
++    const presta: PlanningPresta = {
++      ...(template ?? { nom: '', qte: 1, maquillage: true, coiffure: false }),
++      nom: '',
++      time: 45,
++      artisteIndex,
++      slotIndex: this.nextIndex(state),
++    };
++    state.prestas.push(presta);
++    this.addSlot(state, presta, artisteIndex);
++  }
++
++  /** Supprime une prestation et sa ligne. */
++  deletePresta(state: PlanningState, presta: PlanningPresta): void {
++    const pi = state.prestas.indexOf(presta);
++    if (pi >= 0) state.prestas.splice(pi, 1);
++    const slot = state.slots.find((s) => s.prestaIndex === presta.slotIndex);
++    if (slot) state.slots.splice(state.slots.indexOf(slot), 1);
++    this.refresh(state);
++  }
++
++  /** Réaffecte une prestation à un autre artiste. */
++  changeArtist(state: PlanningState, presta: PlanningPresta, artisteIndex: number): void {
++    const slot = state.slots.find((s) => s.prestaIndex === presta.slotIndex);
++    if (!slot) return;
++    const sameArtist = this.slotsOf(state, slot.artisteIndex);
++    if (sameArtist.length > 1 && sameArtist.indexOf(slot) === 0) {
++      sameArtist[1].arrivee = slot.arrivee;
++      sameArtist[1].installation = slot.installation;
++    }
++    state.slots.splice(state.slots.indexOf(slot), 1);
++    presta.artisteIndex = artisteIndex;
++    this.addSlot(state, presta, artisteIndex);
++  }
++
++  /** Active/désactive maquillage ou coiffure d'une prestation (ajuste la durée). */
++  toggleType(state: PlanningState, presta: PlanningPresta, type: 'm' | 'c'): void {
++    if (!presta.maquillage && !presta.coiffure) {
++      if (type === 'm') presta.coiffure = true;
++      else presta.maquillage = true;
++    } else if (presta.maquillage && presta.coiffure) {
++      presta.time = (presta.time ?? 0) * 2;
++    } else {
++      presta.time = (presta.time ?? 0) / 2;
++    }
++    const slot = state.slots.find((s) => s.prestaIndex === presta.slotIndex);
++    if (slot) {
++      const debut = slot.maquillage || slot.coiffure;
++      slot.maquillage = presta.maquillage ? debut : '';
++      slot.coiffure = presta.coiffure ? debut : '';
++    }
++    this.refresh(state);
++  }
++
++  /** Monte une prestation dans l'ordre de son artiste. */
++  moveUp(state: PlanningState, artisteIndex: number, idx: number): void {
++    const ap = this.prestasOf(state, artisteIndex);
++    if (idx <= 0) return;
++    this.swap(state, ap[idx - 1], ap[idx]);
++  }
++
++  /** Descend une prestation dans l'ordre de son artiste. */
++  moveDown(state: PlanningState, artisteIndex: number, idx: number): void {
++    const ap = this.prestasOf(state, artisteIndex);
++    if (idx >= ap.length - 1) return;
++    this.swap(state, ap[idx], ap[idx + 1]);
++  }
++
++  private swap(state: PlanningState, p1: PlanningPresta, p2: PlanningPresta): void {
++    const { slots, prestas } = state;
++    const i1 = slots.find((s) => s.prestaIndex === p1.slotIndex);
++    const i2 = slots.find((s) => s.prestaIndex === p2.slotIndex);
++    if (!i1 || !i2) return;
++
++    if (i1.arrivee !== '') {
++      const arrivee = i1.arrivee;
++      const installation = addMinutes(arrivee, 10);
++      const debut = addMinutes(arrivee, 20);
++      i1.arrivee = '';
++      i1.installation = '';
++      i2.arrivee = arrivee;
++      i2.installation = installation;
++      if (i2.maquillage !== '') i2.maquillage = debut;
++      if (i2.coiffure !== '') i2.coiffure = debut;
++    }
++
++    const pi1 = prestas.indexOf(p1);
++    const pi2 = prestas.indexOf(p2);
++    [prestas[pi1], prestas[pi2]] = [prestas[pi2], prestas[pi1]];
++    const si1 = slots.indexOf(i1);
++    const si2 = slots.indexOf(i2);
++    [slots[si1], slots[si2]] = [slots[si2], slots[si1]];
++
++    this.recompute(state);
++  }
++
++  // --- Aide à l'affichage du tableau PDF (fusion de cellules) ---------------
++
++  /** Champs horaires d'un slot dans l'ordre des colonnes du tableau. */
++  slotCells(slot: PlanningSlot): string[] {
++    return [
++      slot.arrivee,
++      slot.installation,
++      slot.maquillage,
++      slot.coiffure,
++      slot.fin,
++      slot.retouches,
++      slot.disponibilite,
++      slot.ceremonie,
++    ];
++  }
++}
+diff --git a/src/app/core/utils/time.utils.ts b/src/app/core/utils/time.utils.ts
+new file mode 100644
+index 0000000..cfba3a7
+--- /dev/null
++++ b/src/app/core/utils/time.utils.ts
+@@ -0,0 +1,39 @@
++/**
++ * Utilitaires d'heures au format « HhMM » (ex. « 8h30 », « 15h05 »).
++ * Fonctions pures, reprises de la logique d'origine.
++ */
++
++const HM = /^[0-9]{1,2}h[0-9]{2}$/;
++
++/** Vrai si la chaîne est une heure « HhMM » valide. */
++export function isHm(value: string | undefined | null): boolean {
++  return !!value && HM.test(value);
++}
++
++/** Heure « HhMM » en minutes depuis minuit. */
++export function toMinutes(value: string): number {
++  const [h, m] = value.split('h').map(Number);
++  return h * 60 + m;
++}
++
++/** Ajoute (ou retire) des minutes à une heure « HhMM ». */
++export function addMinutes(timeStr: string, minutesToAdd: number): string {
++  if (!timeStr || !timeStr.includes('h')) return '';
++  const [hours, minutes] = timeStr.split('h').map(Number);
++  const date = new Date();
++  date.setHours(hours);
++  date.setMinutes(minutes + minutesToAdd);
++  const nh = date.getHours();
++  const nm = date.getMinutes();
++  return `${nh}h${nm < 10 ? '0' + nm : nm}`;
++}
++
++/** Différence absolue en minutes entre deux heures « HhMM ». */
++export function diffMinutes(a: string, b: string): number {
++  return Math.abs(toMinutes(b) - toMinutes(a));
++}
++
++/** Vrai si `a` est strictement plus tôt que `b`. */
++export function isEarlier(a: string, b: string): boolean {
++  return toMinutes(a) < toMinutes(b);
++}
+diff --git a/src/app/features/documents/planning-editor.html b/src/app/features/documents/planning-editor.html
+new file mode 100644
+index 0000000..d77776e
+--- /dev/null
++++ b/src/app/features/documents/planning-editor.html
+@@ -0,0 +1,234 @@
++<div class="editor" [class.editor--preview]="viewMode() === 'preview'">
++  <header class="editor__head">
++    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
++    <h2>Planning · {{ state.date }}</h2>
++    <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
++  </header>
++
++  <div class="editor__viewtoggle">
++    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
++    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
++  </div>
++
++  <div class="editor__panes">
++    <div class="editor__form">
++      <!-- Paramètres généraux -->
++      <section class="card section">
++        <div class="section__head">
++          <h3 class="section__title">Paramètres</h3>
++          <button class="btn btn--subtle btn--sm" (click)="calculer()">Recalculer</button>
++        </div>
++        <div class="grid">
++          <div class="field">
++            <label>Date</label>
++            <input class="input" [(ngModel)]="state.date" placeholder="jj/mm/aaaa" />
++          </div>
++          <div class="field">
++            <label>Début cérémonie</label>
++            <input
++              class="input"
++              [(ngModel)]="state.ceremonie"
++              (input)="onCeremonie()"
++              placeholder="ex. 15h30"
++            />
++          </div>
++          <div class="field">
++            <label>Fin des prestations</label>
++            <input
++              class="input"
++              [(ngModel)]="state.finPrestas"
++              (input)="onFinPrestas()"
++              placeholder="ex. 14h00"
++            />
++          </div>
++        </div>
++      </section>
++
++      <!-- Un bloc par artiste ayant des prestations -->
++      @for (i of artistsWithPrestas; track i) {
++        <section class="card section artist-block">
++          <div class="artist-block__head">
++            <h3 class="section__title">
++              {{ artistName(state.artists[i]) || 'Artiste ' + (i + 1) }}
++            </h3>
++            <div class="artist-times">
++              <input
++                class="input"
++                [(ngModel)]="state.artists[i].arrivee"
++                (input)="onArrivee(i)"
++                placeholder="Arrivée"
++              />
++              <input
++                class="input"
++                [(ngModel)]="state.artists[i].retouches"
++                (input)="onRetouche(i)"
++                placeholder="Retouches"
++              />
++              <input
++                class="input"
++                [(ngModel)]="state.artists[i].disponibilite"
++                (input)="onDispo(i)"
++                placeholder="Dispo."
++              />
++            </div>
++          </div>
++
++          <div class="prow prow--head">
++            <span>Prix</span>
++            <span>Artiste</span>
++            <span>Ordre</span>
++            <span>Durée</span>
++            <span class="prow__mc">M / C</span>
++            <span></span>
++          </div>
++
++          @for (presta of prestasOf(i); track presta.slotIndex; let x = $index) {
++            <div class="prow" [class.prow--bride]="presta.bride">
++              <input class="input" [(ngModel)]="presta.prix" inputmode="decimal" />
++
++              <select class="select" [(ngModel)]="presta.artisteIndex" (change)="onArtist(presta)">
++                @for (a of state.artists; track $index) {
++                  <option [ngValue]="$index">{{ a.prenom || 'Artiste ' + ($index + 1) }}</option>
++                }
++              </select>
++
++              <div class="prow__order">
++                <button
++                  class="icon-btn icon-btn--sm"
++                  (click)="moveUp(i, x)"
++                  [disabled]="x === 0"
++                  aria-label="Monter"
++                >
++                  ↑
++                </button>
++                <button
++                  class="icon-btn icon-btn--sm"
++                  (click)="moveDown(i, x)"
++                  [disabled]="x === prestasOf(i).length - 1"
++                  aria-label="Descendre"
++                >
++                  ↓
++                </button>
++              </div>
++
++              <input
++                class="input prow__time"
++                [(ngModel)]="presta.time"
++                (input)="onTime(presta)"
++                inputmode="numeric"
++              />
++
++              <div class="prow__mc">
++                <label class="checkbox">
++                  <input
++                    type="checkbox"
++                    [(ngModel)]="presta.maquillage"
++                    (change)="toggleType(presta, 'm')"
++                  />
++                  <span>M</span>
++                </label>
++                <label class="checkbox">
++                  <input
++                    type="checkbox"
++                    [(ngModel)]="presta.coiffure"
++                    (change)="toggleType(presta, 'c')"
++                  />
++                  <span>C</span>
++                </label>
++              </div>
++
++              <div class="prow__actions">
++                <button
++                  class="icon-btn icon-btn--sm"
++                  (click)="rename(presta)"
++                  aria-label="Renommer"
++                >
++                  ✎
++                </button>
++                <button
++                  class="icon-btn icon-btn--sm prow__del"
++                  (click)="deletePresta(presta)"
++                  aria-label="Supprimer"
++                >
++                  ×
++                </button>
++              </div>
++            </div>
++          }
++
++          <button class="btn btn--ghost btn--sm add-row" (click)="addPresta(i)">
++            + Ajouter une prestation
++          </button>
++        </section>
++      }
++
++      <!-- Gestion des artistes -->
++      <section class="card section">
++        <div class="section__head">
++          <h3 class="section__title">Artistes</h3>
++          <button class="btn btn--subtle btn--sm" (click)="addArtist()">+ Ajouter</button>
++        </div>
++        <div class="artists">
++          @for (artist of state.artists; track $index) {
++            <div class="artist-card">
++              <div class="artist-card__top">
++                <span class="artist-card__gain">{{ money(calcGains($index)) }}€</span>
++                @if (prestasOf($index).length === 0) {
++                  <button
++                    class="icon-btn icon-btn--sm prow__del"
++                    (click)="deleteArtist($index)"
++                    aria-label="Supprimer l'artiste"
++                  >
++                    ×
++                  </button>
++                }
++              </div>
++              <input class="input" [(ngModel)]="artist.prenom" placeholder="Prénom" />
++              <input class="input" [(ngModel)]="artist.nom" placeholder="Nom" />
++              <input class="input" [(ngModel)]="artist.tel" placeholder="Téléphone" />
++              <input class="input" [(ngModel)]="artist.mail" placeholder="E-mail" />
++            </div>
++          }
++        </div>
++      </section>
++
++      <!-- Lieu -->
++      <section class="card section">
++        <h3 class="section__title">Lieu</h3>
++        <div class="grid">
++          <div class="field field--full">
++            <label>Domaine</label>
++            <input class="input" [(ngModel)]="state.domaine" placeholder="Domaine" />
++          </div>
++          <div class="field field--full">
++            <label>Adresse</label>
++            <input class="input" [(ngModel)]="state.adresse" placeholder="Adresse" />
++          </div>
++          <div class="field field--full">
++            <label>Code postal &amp; ville</label>
++            <input class="input" [(ngModel)]="state.codepostal" placeholder="Code postal & ville" />
++          </div>
++        </div>
++      </section>
++    </div>
++
++    <div class="editor__preview">
++      <div class="preview-scroll" #previewHost>
++        <div
++          class="preview-stage"
++          [style.width.px]="595 * previewScale()"
++          [style.height.px]="845 * previewScale()"
++        >
++          <div class="preview-zoom" [style.transform]="'scale(' + previewScale() + ')'">
++            <app-planning-pdf [state]="state" [lang]="lang" />
++          </div>
++        </div>
++      </div>
++    </div>
++  </div>
++
++  <footer class="editor__actions">
++    <button class="btn btn--primary" (click)="generatePdf()">Générer le PDF</button>
++    <button class="btn btn--ghost" (click)="save()">Enregistrer</button>
++  </footer>
++</div>
+diff --git a/src/app/features/documents/planning-editor.scss b/src/app/features/documents/planning-editor.scss
+new file mode 100644
+index 0000000..2c81e11
+--- /dev/null
++++ b/src/app/features/documents/planning-editor.scss
+@@ -0,0 +1,324 @@
++@use 'variables' as *;
++@use 'mixins' as *;
++
++:host {
++  display: block;
++}
++
++.editor {
++  max-width: 1200px;
++  margin: 0 auto;
++  @include flex-column(var(--space-4));
++  animation: fade-in 0.25s ease both;
++}
++
++.editor__head {
++  @include flex-between;
++  gap: var(--space-3);
++
++  h2 {
++    font-size: var(--fs-lg);
++    color: var(--brand-deep);
++    @include truncate;
++
++    @include mobile {
++      font-size: var(--fs-md);
++    }
++  }
++}
++
++.editor__viewtoggle {
++  display: none;
++}
++
++.editor__panes {
++  display: grid;
++  grid-template-columns: minmax(440px, 1fr) minmax(300px, 540px);
++  gap: var(--space-5);
++  align-items: start;
++}
++
++.editor__form {
++  @include flex-column(var(--space-4));
++  min-width: 0;
++}
++
++.section {
++  padding: var(--space-5);
++
++  @include mobile {
++    padding: var(--space-4);
++  }
++}
++
++.section__head {
++  @include flex-between;
++  gap: var(--space-3);
++  margin-bottom: var(--space-4);
++}
++
++.section__title {
++  font-size: var(--fs-md);
++  color: var(--brand-strong);
++  margin-bottom: var(--space-4);
++
++  .section__head & {
++    margin-bottom: 0;
++  }
++}
++
++.grid {
++  display: grid;
++  grid-template-columns: repeat(2, 1fr);
++  gap: var(--space-4);
++
++  @include mobile {
++    grid-template-columns: 1fr;
++  }
++}
++
++.field--full {
++  grid-column: 1 / -1;
++}
++
++// --- Bloc artiste ----------------------------------------------------------
++
++.artist-block__head {
++  @include flex-between;
++  gap: var(--space-3);
++  flex-wrap: wrap;
++  margin-bottom: var(--space-4);
++
++  .section__title {
++    margin-bottom: 0;
++  }
++}
++
++.artist-times {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 96px));
++  gap: var(--space-2);
++
++  .input {
++    height: 36px;
++    text-align: center;
++  }
++}
++
++// --- Lignes de prestation --------------------------------------------------
++
++.prow {
++  display: grid;
++  grid-template-columns: 78px minmax(0, 1fr) auto 62px auto auto;
++  gap: var(--space-2);
++  align-items: center;
++  padding: var(--space-2) 0;
++
++  .input,
++  .select {
++    height: 36px;
++  }
++  .select {
++    padding: 0 26px 0 8px;
++  }
++}
++
++.prow--head {
++  font-size: var(--fs-xs);
++  font-weight: 600;
++  color: var(--text-muted);
++  padding-bottom: 0;
++
++  @include mobile {
++    display: none;
++  }
++}
++
++.prow--bride {
++  background: var(--brand-tint);
++  border-radius: var(--radius-md);
++  padding: var(--space-2);
++}
++
++.prow__time {
++  text-align: center;
++  width: 62px;
++}
++
++.prow__order,
++.prow__actions {
++  display: flex;
++  gap: 4px;
++}
++
++.prow__mc {
++  display: flex;
++  gap: var(--space-2);
++}
++
++.checkbox {
++  @include flex(flex-start, center, 4px);
++  cursor: pointer;
++  font-size: var(--fs-xs);
++  color: var(--text-muted);
++
++  input {
++    width: 18px;
++    height: 18px;
++    accent-color: var(--brand);
++  }
++}
++
++.prow__del {
++  color: var(--danger);
++  &:hover {
++    border-color: var(--danger);
++    color: var(--danger);
++  }
++}
++
++.add-row {
++  margin-top: var(--space-3);
++}
++
++// --- Gestion des artistes --------------------------------------------------
++
++.artists {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
++  gap: var(--space-3);
++}
++
++.artist-card {
++  @include flex-column(var(--space-2));
++  padding: var(--space-3);
++  border: 1px solid var(--border);
++  border-radius: var(--radius-md);
++  background: var(--surface-2);
++
++  .input {
++    height: 36px;
++  }
++}
++
++.artist-card__top {
++  @include flex-between;
++
++  .artist-card__gain {
++    font-weight: 700;
++    color: var(--brand-strong);
++  }
++}
++
++// --- Aperçu PDF ------------------------------------------------------------
++
++.editor__preview {
++  position: sticky;
++  top: 76px;
++}
++
++.preview-scroll {
++  overflow: auto;
++  max-width: 100%;
++  padding: var(--space-3);
++  border: 1px solid var(--border);
++  border-radius: var(--radius-md);
++  background: #eceaef;
++  box-shadow: var(--shadow-sm);
++}
++
++.preview-stage {
++  margin: 0 auto;
++  overflow: hidden;
++}
++
++.preview-zoom {
++  width: 595px;
++  transform-origin: top left;
++}
++
++.editor__actions {
++  display: flex;
++  flex-wrap: wrap;
++  gap: var(--space-3);
++  justify-content: center;
++}
++
++// --- Mobile / tablette -----------------------------------------------------
++
++@include tablet-down {
++  .editor__viewtoggle {
++    display: flex;
++    gap: 4px;
++    padding: 4px;
++    background: var(--brand-soft);
++    border-radius: var(--radius-full);
++    position: sticky;
++    top: 60px;
++    z-index: 5;
++    box-shadow: 0 0 0 14px var(--bg);
++
++    button {
++      flex: 1;
++      border: none;
++      background: transparent;
++      padding: 9px;
++      border-radius: var(--radius-full);
++      font-weight: 600;
++      color: var(--brand-strong);
++      cursor: pointer;
++      transition: var(--transition);
++
++      &.active {
++        background: var(--surface);
++        box-shadow: var(--shadow-sm);
++      }
++    }
++  }
++
++  .editor__panes {
++    grid-template-columns: 1fr;
++    gap: var(--space-4);
++  }
++
++  .editor:not(.editor--preview) .editor__preview {
++    display: none;
++  }
++  .editor--preview .editor__form {
++    display: none;
++  }
++
++  .editor__preview {
++    position: static;
++  }
++
++  .preview-scroll {
++    padding: var(--space-2);
++  }
++
++  // Une prestation = une carte empilée, lisible sur petit écran.
++  .prow {
++    grid-template-columns: 1fr 1fr;
++    gap: var(--space-2);
++    padding: var(--space-3);
++    border: 1px solid var(--border);
++    border-radius: var(--radius-md);
++    background: var(--surface-2);
++  }
++
++  .prow .select {
++    grid-column: 1 / -1;
++  }
++  .prow__order {
++    justify-content: flex-start;
++  }
++  .prow__time {
++    width: 100%;
++  }
++  .prow__mc {
++    justify-content: center;
++  }
++  .prow__actions {
++    justify-content: flex-end;
++  }
++}
+diff --git a/src/app/features/documents/planning-editor.ts b/src/app/features/documents/planning-editor.ts
+new file mode 100644
+index 0000000..e9ab38c
+--- /dev/null
++++ b/src/app/features/documents/planning-editor.ts
+@@ -0,0 +1,268 @@
++import {
++  AfterViewInit,
++  Component,
++  DestroyRef,
++  ElementRef,
++  OnInit,
++  inject,
++  input,
++  output,
++  signal,
++  viewChild,
++} from '@angular/core';
++import { FormsModule } from '@angular/forms';
++
++import { Artist, CatalogItem, Journee, Langue, Planning, PlanningPresta } from '../../core/models';
++import { DialogService } from '../../core/services/dialog.service';
++import { PdfService } from '../../core/services/pdf.service';
++import { PlanningService } from '../../core/services/planning.service';
++import { PricingService } from '../../core/services/pricing.service';
++import { formatAmount } from '../../core/utils/money.utils';
++import { PlanningPdf } from './planning-pdf';
++import { DEFAULT_ARTISTS } from './planning.constants';
++import { PlanningEditorState } from './planning.types';
++
++/**
++ * Éditeur du planning du jour-J : paramètres (date, cérémonie, fin), blocs par
++ * artiste (prestations ordonnées), gestion des artistes et lieu, le tout avec un
++ * aperçu imprimable en direct (`PlanningPdf`). Toute la logique de calcul des
++ * horaires est déléguée au `PlanningService`.
++ */
++@Component({
++  selector: 'app-planning-editor',
++  imports: [FormsModule, PlanningPdf],
++  templateUrl: './planning-editor.html',
++  styleUrl: './planning-editor.scss',
++})
++export class PlanningEditor implements OnInit, AfterViewInit {
++  private readonly planning = inject(PlanningService);
++  private readonly pricing = inject(PricingService);
++  private readonly pdf = inject(PdfService);
++  private readonly dialog = inject(DialogService);
++  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
++  private readonly destroyRef = inject(DestroyRef);
++  private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
++
++  readonly journee = input.required<Journee>();
++  readonly catalog = input<CatalogItem[]>([]);
++
++  readonly saved = output<void>();
++  readonly closed = output<void>();
++
++  protected state!: PlanningEditorState;
++  protected lang = Langue.Francais;
++
++  /** Vue active sur mobile : formulaire ou aperçu. */
++  protected readonly viewMode = signal<'form' | 'preview'>('form');
++  /** Échelle d'affichage de l'aperçu (1 sur desktop, réduit sur mobile). */
++  protected readonly previewScale = signal(1);
++
++  ngOnInit(): void {
++    const j = this.journee();
++    const existing = j.planning;
++
++    if (existing?.date) {
++      this.state = {
++        artists: existing.artistes.map((a) => ({ ...a })),
++        slots: existing.slots.map((s) => ({ ...s })),
++        prestas: existing.prestas.map((p) => ({ ...p })),
++        ceremonie: j.mariage.ceremonie ?? existing.ceremonie ?? '',
++        finPrestas: existing.finPrestas ?? '',
++        date: existing.date,
++        domaine: existing.domaine ?? '',
++        adresse: existing.adresse ?? '',
++        codepostal: existing.codepostal ?? '',
++      };
++    } else {
++      this.state = {
++        artists: DEFAULT_ARTISTS.map((a) => ({ ...a })),
++        slots: [],
++        prestas: [],
++        ceremonie: j.mariage.ceremonie ?? '',
++        finPrestas: '',
++        date: j.date,
++        domaine: j.mariage.domaine ?? '',
++        adresse: j.mariage.adresse ?? '',
++        codepostal: j.mariage.codepostal ?? '',
++      };
++      this.planning.build(j.devis?.prestas ?? [], this.catalog(), this.state);
++    }
++  }
++
++  ngAfterViewInit(): void {
++    const host = this.previewHost()?.nativeElement;
++    if (!host) return;
++    const observer = new ResizeObserver(() => this.computeScale());
++    observer.observe(host);
++    this.destroyRef.onDestroy(() => observer.disconnect());
++    this.computeScale();
++  }
++
++  protected setView(mode: 'form' | 'preview'): void {
++    this.viewMode.set(mode);
++    queueMicrotask(() => this.computeScale());
++  }
++
++  private computeScale(): void {
++    const host = this.previewHost()?.nativeElement;
++    if (!host) return;
++    const available = host.clientWidth - 24;
++    if (available < 50) return;
++    this.previewScale.set(Math.max(0.3, Math.min(1, available / 595)));
++  }
++
++  // --- Lecture pour la vue ---------------------------------------------------
++
++  /** Index des artistes ayant au moins une prestation (blocs d'édition). */
++  protected get artistsWithPrestas(): number[] {
++    const result: number[] = [];
++    for (let i = 0; i < this.state.artists.length; i++) {
++      if (this.planning.prestasOf(this.state, i).length > 0) result.push(i);
++    }
++    return result;
++  }
++
++  protected prestasOf(i: number): PlanningPresta[] {
++    return this.planning.prestasOf(this.state, i);
++  }
++
++  protected artistName(artist: Artist): string {
++    return `${artist.prenom} ${artist.nom}`.trim();
++  }
++
++  protected money(value: number | string): string {
++    return formatAmount(value);
++  }
++
++  /** Gains d'un artiste : prestations + renforts (autres) / déplacements (Cloé). */
++  protected calcGains(i: number): number {
++    let total = 0;
++    for (const presta of this.prestasOf(i)) {
++      let prix = Math.trunc(Number(presta.prix ?? 0));
++      if (presta.reduc) prix = prix - (prix * presta.reduc) / 100;
++      total += Math.trunc(prix);
++    }
++    for (const presta of this.journee().devis?.prestas ?? []) {
++      if (presta.qte === '?') continue;
++      const nom = presta.nom ?? '';
++      if (i !== 0 && nom.includes('renfort')) {
++        total += Math.trunc(this.pricing.lineTotal(presta));
++      } else if (i === 0 && nom.includes('Frais de déplacement') && !nom.includes('renfort')) {
++        total += Math.trunc(this.pricing.lineTotal(presta));
++      }
++    }
++    return total;
++  }
++
++  // --- Réactions aux saisies -------------------------------------------------
++
++  protected calculer(): void {
++    this.planning.recompute(this.state);
++  }
++
++  protected onCeremonie(): void {
++    this.planning.onCeremonieChange(this.state);
++  }
++
++  protected onFinPrestas(): void {
++    this.planning.onFinPrestasChange(this.state);
++  }
++
++  protected onArrivee(i: number): void {
++    this.planning.onArriveeChange(this.state, i);
++  }
++
++  protected onRetouche(i: number): void {
++    this.planning.onRetoucheChange(this.state, i);
++  }
++
++  protected onDispo(i: number): void {
++    this.planning.onDispoChange(this.state, i);
++  }
++
++  protected onTime(presta: PlanningPresta): void {
++    this.planning.onTimeChange(this.state, presta);
++  }
++
++  protected onArtist(presta: PlanningPresta): void {
++    this.planning.changeArtist(this.state, presta, Number(presta.artisteIndex));
++  }
++
++  protected toggleType(presta: PlanningPresta, type: 'm' | 'c'): void {
++    this.planning.toggleType(this.state, presta, type);
++  }
++
++  protected moveUp(i: number, x: number): void {
++    this.planning.moveUp(this.state, i, x);
++  }
++
++  protected moveDown(i: number, x: number): void {
++    this.planning.moveDown(this.state, i, x);
++  }
++
++  protected deletePresta(presta: PlanningPresta): void {
++    this.planning.deletePresta(this.state, presta);
++  }
++
++  protected addPresta(i: number): void {
++    this.planning.addPresta(this.state, i);
++  }
++
++  protected async rename(presta: PlanningPresta): Promise<void> {
++    const slot = this.state.slots.find((s) => s.prestaIndex === presta.slotIndex);
++    if (!slot) return;
++    const value = await this.dialog.prompt('Renommer cette ligne', slot.nomPerso ?? '');
++    if (value === null) return;
++    slot.nomPerso = value.trim() === '' ? undefined : value.trim();
++  }
++
++  protected addArtist(): void {
++    this.state.artists.push({
++      prenom: '',
++      nom: '',
++      tel: '',
++      mail: '',
++      arrivee: '',
++      retouches: '',
++      disponibilite: '',
++    });
++  }
++
++  protected deleteArtist(i: number): void {
++    if (this.planning.prestasOf(this.state, i).length > 0) return;
++    this.state.artists.splice(i, 1);
++  }
++
++  protected toggleLang(): void {
++    this.lang = this.lang === Langue.Francais ? Langue.Anglais : Langue.Francais;
++  }
++
++  // --- Actions ---------------------------------------------------------------
++
++  protected save(): void {
++    const j = this.journee();
++    const planning: Planning = {
++      date: this.state.date || j.date,
++      domaine: this.state.domaine,
++      adresse: this.state.adresse,
++      codepostal: this.state.codepostal,
++      ceremonie: this.state.ceremonie,
++      finPrestas: this.state.finPrestas,
++      artistes: this.state.artists,
++      slots: this.state.slots,
++      prestas: this.state.prestas,
++    };
++    if (!j.mariage.ceremonie) j.mariage.ceremonie = this.state.ceremonie;
++    j.planning = planning;
++    this.saved.emit();
++  }
++
++  protected async generatePdf(): Promise<void> {
++    const element = this.host.nativeElement.querySelector<HTMLElement>('#htmlContent');
++    if (element) await this.pdf.generate(element, this.filename());
++  }
++
++  private filename(): string {
++    return `PLANNING_${(this.state.date || this.journee().date).replace(/\//g, '_')}`;
++  }
++}
+diff --git a/src/app/features/documents/planning-pdf.html b/src/app/features/documents/planning-pdf.html
+new file mode 100644
+index 0000000..fc72c10
+--- /dev/null
++++ b/src/app/features/documents/planning-pdf.html
+@@ -0,0 +1,86 @@
++<div class="cloecss">
++  <div id="htmlContent">
++    <img src="logo.png" class="logo" alt="" />
++
++    <p class="rosebg">{{ fr() ? 'PLANNING' : 'SCHEDULE' }}</p>
++    <p class="date">{{ fr() ? 'Date' : 'Date' }} : {{ formatDate(state().date) }}</p>
++    <div class="ligne"></div>
++
++    <div class="content">
++      <div class="tableplann">
++        @for (h of headers; track $index) {
++          <div class="relative containerline">
++            <div class="orientedline"></div>
++            <p>&nbsp;</p>
++          </div>
++        }
++        <div class="absolute">
++          @for (h of headers; track $index) {
++            <div class="relative">
++              <p>{{ fr() ? h.fr : h.en }}</p>
++            </div>
++          }
++        </div>
++      </div>
++
++      @for (entry of entries(); track entry.index) {
++        <table>
++          <tr class="firstrow">
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++            <td class="horaire">&nbsp;</td>
++          </tr>
++          @for (slot of entry.rows; track $index; let i = $index) {
++            <tr class="relative">
++              <p class="invitee" [class.onlyonerow]="entry.rows.length === 1">
++                {{ slotLabel(entry, i) }}
++              </p>
++              <td class="horaire noborder" [class.odd]="i % 2 !== 0">&nbsp;</td>
++              @for (col of columns; track col; let j = $index) {
++                <td
++                  class="horaire"
++                  [attr.rowspan]="rowSpan(entry.cells, i, j)"
++                  [attr.colspan]="colSpan(entry.cells, i, j)"
++                  [class.none]="hidden(entry.cells, i, j)"
++                  [class.odd]="i % 2 !== 0"
++                >
++                  {{ cellText(entry.cells, i, j) }}
++                </td>
++              }
++            </tr>
++          }
++        </table>
++        @if (multiArtist()) {
++          <p class="artist">{{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}</p>
++        }
++      }
++    </div>
++
++    <div class="bottomplann">
++      <p class="rosebg">&nbsp;</p>
++      <div class="botbot">
++        <div class="adres">
++          <p>{{ state().domaine || 'Domaine' }}</p>
++          <p>{{ state().adresse || 'Adresse' }}</p>
++          <p>{{ state().codepostal || (fr() ? 'Code postal + Ville' : 'Postal code + City') }}</p>
++        </div>
++        <p class="cont">CONTACT</p>
++        <div class="flex between">
++          @for (entry of entries(); track entry.index) {
++            <div>
++              <p>{{ artistName(entry.artist) }}</p>
++              <p>{{ entry.artist.tel }}</p>
++              <p>{{ entry.artist.mail }}</p>
++            </div>
++          }
++        </div>
++      </div>
++    </div>
++  </div>
++</div>
+diff --git a/src/app/features/documents/planning-pdf.scss b/src/app/features/documents/planning-pdf.scss
+new file mode 100644
+index 0000000..beb74bf
+--- /dev/null
++++ b/src/app/features/documents/planning-pdf.scss
+@@ -0,0 +1,209 @@
++// Styles du planning imprimable — repris fidèlement de l'application d'origine
++// pour un format de PDF identique (en-têtes diagonaux, fusion de cellules).
++// Scopés au composant.
++
++.cloecss {
++  display: inline-block;
++
++  p {
++    font-family: 'Cardo', serif;
++    font-weight: 400;
++    font-style: normal;
++    margin: 0;
++    font-size: 14px;
++    letter-spacing: 1px;
++  }
++
++  .flex {
++    display: flex;
++  }
++  .between {
++    justify-content: space-between;
++  }
++
++  #htmlContent {
++    width: 595px;
++    min-width: 595px;
++    height: 835px;
++    position: relative;
++    background: #fff;
++    padding: 5px;
++  }
++
++  .rosebg {
++    background-color: #ab83ba22;
++    font-size: 25.1px;
++    text-align: center;
++    letter-spacing: 15px;
++    color: white;
++  }
++
++  // Logo horizontal : dimensionné par la hauteur (robuste à tout ratio).
++  .logo {
++    display: block;
++    height: 56px;
++    width: auto;
++    max-width: 70%;
++    margin: 6px auto 8px;
++  }
++
++  .date {
++    text-align: center;
++    font-size: 15px;
++  }
++
++  .ligne {
++    border-bottom: 1px solid black;
++    width: 90%;
++    display: flex;
++    margin: auto;
++  }
++
++  .content {
++    padding: 0 15px;
++    position: relative;
++  }
++
++  .relative {
++    position: relative;
++  }
++  .absolute {
++    position: absolute;
++    display: flex;
++    left: 92px;
++  }
++  .none {
++    display: none;
++  }
++
++  // --- En-têtes diagonaux ---------------------------------------------------
++
++  .tableplann {
++    display: flex;
++    height: 80px;
++    padding-left: 52px;
++
++    p {
++      width: 58px;
++      white-space: nowrap;
++      text-align: center;
++      font-size: 10px !important;
++      transform: rotate(-45deg);
++      transform-origin: left bottom;
++      height: 40px;
++      top: 58px;
++      position: relative;
++    }
++    .containerline {
++      position: relative;
++      width: 55px;
++    }
++    .orientedline {
++      left: 0;
++      position: absolute;
++      border-left: 1px solid black;
++      height: 80px;
++      transform: rotate(45deg);
++      transform-origin: bottom left;
++    }
++  }
++
++  // --- Tableau par artiste --------------------------------------------------
++
++  table {
++    border-collapse: collapse;
++    top: -21px;
++    left: -14px;
++    position: relative;
++
++    .odd {
++      background-color: rgba(171, 131, 186, 0.1333333333);
++    }
++    td {
++      border: 1px solid black;
++    }
++    .horaire {
++      width: 55px;
++      min-width: 55px;
++      max-width: 55px;
++      text-align: center;
++      font-size: 13px;
++    }
++  }
++
++  .firstrow {
++    opacity: 0;
++
++    td {
++      border: 1px solid transparent;
++      border-bottom: 1px solid black;
++    }
++  }
++
++  .noborder {
++    border: unset !important;
++    border-top: 1px solid black !important;
++    border-bottom: 1px solid black !important;
++    padding-left: 10px;
++  }
++
++  .invitee {
++    white-space: nowrap;
++    position: absolute;
++    left: 5px;
++    top: 2px;
++    z-index: 2;
++    background: #fff;
++    padding-right: 4px;
++  }
++
++  .artist {
++    position: relative;
++    top: -22px;
++    text-align: right;
++    font-style: italic;
++  }
++
++  // --- Pied : lieu + contacts -----------------------------------------------
++
++  .bottomplann {
++    position: absolute;
++    bottom: 0;
++    width: 100%;
++
++    .cont {
++      color: #87528e;
++      text-decoration: underline;
++      font-weight: bold;
++    }
++    .flex p {
++      font-size: 11px;
++    }
++  }
++
++  .botbot {
++    padding: 5px 20px;
++  }
++
++  .adres {
++    border: 1px solid black;
++    width: 250px;
++    padding: 5px 0;
++    margin: 15px 0;
++
++    p {
++      padding: 0 5px;
++    }
++    p:nth-child(1) {
++      font-weight: bold;
++      border-bottom: 1px solid black;
++    }
++    p:nth-child(2) {
++      font-style: italic;
++      padding-top: 5px;
++    }
++    p:nth-child(3) {
++      font-style: italic;
++    }
++  }
++}
+diff --git a/src/app/features/documents/planning-pdf.ts b/src/app/features/documents/planning-pdf.ts
+new file mode 100644
+index 0000000..61189a4
+--- /dev/null
++++ b/src/app/features/documents/planning-pdf.ts
+@@ -0,0 +1,125 @@
++import { Component, inject, input } from '@angular/core';
++
++import { Artist, Langue, PlanningSlot } from '../../core/models';
++import { PlanningService } from '../../core/services/planning.service';
++import { PLANNING_HEADERS, RETOUCHES_COL, SLOT_LABELS } from './planning.constants';
++import { PlanningEditorState } from './planning.types';
++
++/** Un artiste retenu pour l'affichage, avec son index d'origine. */
++interface ArtistEntry {
++  artist: Artist;
++  index: number;
++  rows: PlanningSlot[];
++  /** Matrice des cellules horaires (lignes × 8 colonnes). */
++  cells: string[][];
++}
++
++/**
++ * Rendu imprimable du planning du jour-J (`#htmlContent`, capturé tel quel par
++ * html2canvas). Reproduit fidèlement le format d'origine : en-têtes diagonaux,
++ * tableau par artiste avec fusion de cellules (rowspan / colspan) sur les
++ * horaires identiques. Composant purement présentationnel (détection par défaut
++ * pour refléter en direct les saisies de l'éditeur).
++ */
++@Component({
++  selector: 'app-planning-pdf',
++  imports: [],
++  templateUrl: './planning-pdf.html',
++  styleUrl: './planning-pdf.scss',
++})
++export class PlanningPdf {
++  private readonly planning = inject(PlanningService);
++
++  readonly state = input.required<PlanningEditorState>();
++  readonly lang = input.required<Langue>();
++
++  protected readonly headers = PLANNING_HEADERS;
++  protected readonly columns = [0, 1, 2, 3, 4, 5, 6, 7];
++
++  protected fr(): boolean {
++    return this.lang() === Langue.Francais;
++  }
++
++  /** Artistes ayant au moins une ligne, avec leur matrice de cellules. */
++  protected entries(): ArtistEntry[] {
++    const state = this.state();
++    const result: ArtistEntry[] = [];
++    for (let index = 0; index < state.artists.length; index++) {
++      const rows = this.planning.slotsOf(state, index);
++      if (rows.length === 0) continue;
++      result.push({
++        artist: state.artists[index],
++        index,
++        rows,
++        cells: rows.map((slot) => this.planning.slotCells(slot)),
++      });
++    }
++    return result;
++  }
++
++  /** Plusieurs artistes interviennent : on affiche leur nom sous chaque tableau. */
++  protected multiArtist(): boolean {
++    return this.entries().length > 1;
++  }
++
++  /** Libellé d'une ligne : nom personnalisé, sinon « Invitée N » / « Mariée ». */
++  protected slotLabel(entry: ArtistEntry, i: number): string {
++    const slot = entry.rows[i];
++    if (slot.nomPerso) return slot.nomPerso;
++    if (slot.type === 1) return this.fr() ? SLOT_LABELS.mariee.fr : SLOT_LABELS.mariee.en;
++    const label = this.fr() ? SLOT_LABELS.invitee.fr : SLOT_LABELS.invitee.en;
++    let n = 1;
++    for (let x = 0; x < i; x++) if (entry.rows[x].type === slot.type) n++;
++    return `${label} ${n}`;
++  }
++
++  /** Texte d'une cellule horaire (préfixe « Jusqu'à » / « Until » sur les retouches). */
++  protected cellText(cells: string[][], i: number, j: number): string {
++    const value = cells[i][j];
++    if (!value) return '';
++    if (j === RETOUCHES_COL) return `${this.fr() ? "Jusqu'à " : 'Until '}${value}`;
++    return value;
++  }
++
++  /** Nombre de lignes fusionnées vers le bas (rowspan). */
++  protected rowSpan(cells: string[][], i: number, j: number): number {
++    const value = cells[i][j];
++    let count = 1;
++    for (let k = i + 1; k < cells.length; k++) {
++      if (value !== '' && cells[k][j] === value) count++;
++      else break;
++    }
++    return count;
++  }
++
++  /** Nombre de colonnes fusionnées vers la droite (colspan). */
++  protected colSpan(cells: string[][], i: number, j: number): number {
++    const value = cells[i][j];
++    let count = 1;
++    for (let k = j + 1; k < cells[i].length; k++) {
++      if (value !== '' && cells[i][k] === value) count++;
++      else break;
++    }
++    return count;
++  }
++
++  /** Cellule fusionnée dans une voisine (gauche ou haut) → masquée. */
++  protected hidden(cells: string[][], i: number, j: number): boolean {
++    const value = cells[i][j];
++    if (value === '') return false;
++    if (j > 0 && cells[i][j - 1] === value) return true;
++    if (i > 0 && cells[i - 1][j] === value) return true;
++    return false;
++  }
++
++  protected formatDate(value: string | undefined): string {
++    if (!value) return '';
++    if (this.fr()) return value;
++    const [d, m, y] = value.split('/');
++    return `${m}/${d}/${y}`;
++  }
++
++  protected artistName(artist: Artist): string {
++    return `${artist.prenom} ${artist.nom}`;
++  }
++}
+diff --git a/src/app/features/documents/planning.constants.ts b/src/app/features/documents/planning.constants.ts
+new file mode 100644
+index 0000000..7f89b47
+--- /dev/null
++++ b/src/app/features/documents/planning.constants.ts
+@@ -0,0 +1,47 @@
++import { Artist } from '../../core/models';
++
++/** Artistes par défaut d'un nouveau planning (Cloé + renfort habituel). */
++export const DEFAULT_ARTISTS: ReadonlyArray<Artist> = [
++  {
++    prenom: 'Cloé',
++    nom: 'CHAUDRON',
++    tel: '+33 6 68 64 44 02',
++    mail: 'cloe.chaudron@outlook.com',
++    arrivee: '',
++    retouches: '',
++    disponibilite: '',
++  },
++  {
++    prenom: 'Celma',
++    nom: 'SAHIDET',
++    tel: '+33 6 80 84 42 52',
++    mail: 'sahidetcelma@gmail.com',
++    arrivee: '',
++    retouches: '',
++    disponibilite: '',
++  },
++];
++
++/** En-têtes des 8 colonnes d'horaire du tableau (fr / en), dans l'ordre. */
++export const PLANNING_HEADERS: ReadonlyArray<{ fr: string; en: string }> = [
++  { fr: 'ARRIVEE', en: 'ARRIVAL' },
++  { fr: 'INSTALLATION', en: 'SETUP' },
++  { fr: 'MAQUILLAGE', en: 'MAKEUP' },
++  { fr: 'COIFFURE', en: 'HAIRSTYLING' },
++  { fr: 'FIN PRESTATION', en: 'END OF SERVICE' },
++  { fr: 'RETOUCHES', en: 'TOUCH-UPS' },
++  { fr: 'DISPONIBILITE', en: 'AVAILABILITY' },
++  { fr: 'CEREMONIE', en: 'CEREMONY' },
++];
++
++/** Libellés du type de ligne (invitée / mariée). */
++export const SLOT_LABELS: {
++  invitee: { fr: string; en: string };
++  mariee: { fr: string; en: string };
++} = {
++  invitee: { fr: 'Invitée', en: 'Guest' },
++  mariee: { fr: 'Mariée', en: 'Bride' },
++};
++
++/** Index de la colonne « retouches » (préfixée « Jusqu'à » / « Until »). */
++export const RETOUCHES_COL = 5;
+diff --git a/src/app/features/documents/planning.types.ts b/src/app/features/documents/planning.types.ts
+new file mode 100644
+index 0000000..89c302d
+--- /dev/null
++++ b/src/app/features/documents/planning.types.ts
+@@ -0,0 +1,13 @@
++import { PlanningState } from '../../core/services/planning.service';
++
++/**
++ * État de travail complet de l'éditeur de planning : l'état d'algorithme
++ * (`PlanningState`) enrichi des informations de lieu et de la date du planning.
++ */
++export interface PlanningEditorState extends PlanningState {
++  /** Date du planning au format jj/mm/aaaa. */
++  date: string;
++  domaine: string;
++  adresse: string;
++  codepostal: string;
++}
+diff --git a/src/app/features/journee/journee-detail.html b/src/app/features/journee/journee-detail.html
+index 263e640..fcd82b0 100644
+--- a/src/app/features/journee/journee-detail.html
++++ b/src/app/features/journee/journee-detail.html
+@@ -188,6 +188,15 @@
+             </div>
+           }
+ 
++          @if (!isPerso) {
++            <div class="docs__row">
++              <span class="docs__label">Planning</span>
++              <button class="btn btn--ghost btn--sm" (click)="openPlanningDoc()">
++                {{ hasPlanning ? 'Planning du ' + data.planning?.date : 'Établir le planning' }}
++              </button>
++            </div>
++          }
++
+           <div class="docs__row">
+             <span class="docs__label">Étape</span>
+             <button class="btn btn--ghost btn--sm" (click)="clickEtape()">
+@@ -286,8 +295,4 @@
+       <button class="btn btn--primary" (click)="wentToWedding.emit()">Aller au mariage</button>
+     }
+   </footer>
+-
+-  @if (!isEssai && !isPerso) {
+-    <p class="todo muted">Planning et renseignements : à venir (étape 4).</p>
+-  }
+ </div>
+diff --git a/src/app/features/journee/journee-detail.ts b/src/app/features/journee/journee-detail.ts
+index 72ff72e..f7152a2 100644
+--- a/src/app/features/journee/journee-detail.ts
++++ b/src/app/features/journee/journee-detail.ts
+@@ -44,6 +44,7 @@ export class JourneeDetail {
+   readonly dayChanged = output<number>();
+   readonly eventChanged = output<number>();
+   readonly openDocument = output<DocumentRequest>();
++  readonly openPlanning = output<void>();
+ 
+   protected readonly Statut = Statut;
+   protected readonly Etape = Etape;
+@@ -97,6 +98,10 @@ export class JourneeDetail {
+     return !!this.data.devis?.creation;
+   }
+ 
++  protected get hasPlanning(): boolean {
++    return !!this.data.planning?.date;
++  }
++
+   protected get devisPrestas(): Presta[] {
+     return this.data.devis?.prestas ?? [];
+   }
+@@ -164,4 +169,8 @@ export class JourneeDetail {
+     if (this.data.etape === Etape.Devis) this.openDevis();
+     else this.openFacture(-1);
+   }
++
++  protected openPlanningDoc(): void {
++    this.openPlanning.emit();
++  }
+ }
+-- 
+2.43.0
+
