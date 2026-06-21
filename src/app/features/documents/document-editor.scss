@@ -12,6 +12,18 @@
   animation: fade-in 0.25s ease both;
 }
 
+// Barre supérieure collante (retour toujours accessible).
+.editor__bar {
+  position: sticky;
+  top: 60px;
+  z-index: 6;
+  @include flex-column(var(--space-3));
+  padding: var(--space-3) 0;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
 .editor__head {
   @include flex-between;
   gap: var(--space-3);
@@ -156,7 +168,7 @@
 
 .editor__preview {
   position: sticky;
-  top: 76px;
+  top: 124px;
 }
 
 .preview-scroll {
@@ -195,10 +207,6 @@
     padding: 4px;
     background: var(--brand-soft);
     border-radius: var(--radius-full);
-    position: sticky;
-    top: 60px;
-    z-index: 5;
-    box-shadow: 0 0 0 14px var(--bg);
 
     button {
       flex: 1;

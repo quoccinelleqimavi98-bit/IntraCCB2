@@ -25,6 +25,7 @@ import {
 } from '../../core/models';
 import { PdfService } from '../../core/services/pdf.service';
 import { PricingService } from '../../core/services/pricing.service';
+import { DialogService } from '../../core/services/dialog.service';
 import { formatAmount } from '../../core/utils/money.utils';
 import { addDaysFr, todayFrDate } from '../../core/utils/date.utils';
 import { DocumentPdf } from './document-pdf';
@@ -45,9 +46,13 @@ import { DocumentKind, DocumentValues } from './document.types';
 export class DocumentEditor implements OnInit, AfterViewInit {
   private readonly pricing = inject(PricingService);
   private readonly pdf = inject(PdfService);
+  private readonly dialog = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
+
+  /** Empreinte de l'état éditable au chargement (pour détecter les modifications). */
+  private snapshot = '';
 
   readonly journee = input.required<Journee>();
   readonly mode = input.required<DocumentKind>();
@@ -127,6 +132,31 @@ export class DocumentEditor implements OnInit, AfterViewInit {
 
     if (this.isDevis) this.initDevis(data);
     else this.initFacture(data);
+
+    this.snapshot = this.fingerprint();
+  }
+
+  /** Empreinte de l'état éditable, pour détecter une modification non enregistrée. */
+  private fingerprint(): string {
+    return JSON.stringify({
+      prestas: this.prestas,
+      values: this.values,
+      lang: this.lang,
+      modedevis: this.modedevis,
+      acquittee: this.acquittee,
+    });
+  }
+
+  /** Retour : demande confirmation si des modifications sont en cours. */
+  protected async close(): Promise<void> {
+    if (this.fingerprint() === this.snapshot) {
+      this.closed.emit();
+      return;
+    }
+    const choice = await this.dialog.confirmSave();
+    if (choice === 'cancel') return;
+    if (choice === 'save') this.save();
+    else this.closed.emit();
   }
 
   protected get isDevis(): boolean {

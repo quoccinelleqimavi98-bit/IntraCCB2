@@ -36,4 +36,30 @@ export class DialogService {
     });
     return result.isConfirmed ? (result.value ?? '') : null;
   }
+
+  /**
+   * Confirmation à trois issues pour une sortie d'édition non enregistrée :
+   * enregistrer, quitter sans enregistrer, ou continuer l'édition.
+   */
+  async confirmSave(
+    text = 'Vous avez des modifications non enregistrées.',
+    title = 'Modifications en cours',
+  ): Promise<'save' | 'discard' | 'cancel'> {
+    const result = await Swal.fire({
+      title,
+      text,
+      icon: 'warning',
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'Enregistrer',
+      denyButtonText: 'Quitter sans enregistrer',
+      cancelButtonText: "Continuer l'édition",
+      confirmButtonColor: '#aa82ba',
+      denyButtonColor: '#b3261e',
+      cancelButtonColor: '#7c7184',
+    });
+    if (result.isConfirmed) return 'save';
+    if (result.isDenied) return 'discard';
+    return 'cancel';
+  }
 }

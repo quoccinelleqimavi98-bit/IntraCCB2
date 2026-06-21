@@ -12,7 +12,16 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { Artist, CatalogItem, Journee, Langue, Planning, PlanningPresta } from '../../core/models';
+import {
+  Artist,
+  CatalogItem,
+  Journee,
+  Langue,
+  Planning,
+  PlanningPresta,
+  PlanningSlot,
+  SlotType,
+} from '../../core/models';
 import { DialogService } from '../../core/services/dialog.service';
 import { PdfService } from '../../core/services/pdf.service';
 import { PlanningService } from '../../core/services/planning.service';
@@ -52,6 +61,9 @@ export class PlanningEditor implements OnInit, AfterViewInit {
   protected state!: PlanningEditorState;
   protected lang = Langue.Francais;
 
+  /** Empreinte de l'état au chargement (détection des modifications). */
+  private snapshot = '';
+
   /** Vue active sur mobile : formulaire ou aperçu. */
   protected readonly viewMode = signal<'form' | 'preview'>('form');
   /** Échelle d'affichage de l'aperçu (1 sur desktop, réduit sur mobile). */
@@ -87,6 +99,24 @@ export class PlanningEditor implements OnInit, AfterViewInit {
       };
       this.planning.build(j.devis?.prestas ?? [], this.catalog(), this.state);
     }
+
+    this.snapshot = this.fingerprint();
+  }
+
+  private fingerprint(): string {
+    return JSON.stringify({ state: this.state, lang: this.lang });
+  }
+
+  /** Retour : demande confirmation si des modifications sont en cours. */
+  protected async close(): Promise<void> {
+    if (this.fingerprint() === this.snapshot) {
+      this.closed.emit();
+      return;
+    }
+    const choice = await this.dialog.confirmSave();
+    if (choice === 'cancel') return;
+    if (choice === 'save') this.save();
+    else this.closed.emit();
   }
 
   ngAfterViewInit(): void {
@@ -208,12 +238,37 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     this.planning.addPresta(this.state, i);
   }
 
-  protected async rename(presta: PlanningPresta): Promise<void> {
-    const slot = this.state.slots.find((s) => s.prestaIndex === presta.slotIndex);
-    if (!slot) return;
-    const value = await this.dialog.prompt('Renommer cette ligne', slot.nomPerso ?? '');
-    if (value === null) return;
-    slot.nomPerso = value.trim() === '' ? undefined : value.trim();
+  /** Slot (ligne d'horaire) associé à une prestation. */
+  protected slotFor(presta: PlanningPresta): PlanningSlot | undefined {
+    return this.state.slots.find((s) => s.prestaIndex === presta.slotIndex);
+  }
+
+  /** Libellé automatique d'une ligne (« Invitée N » / « Mariée »), pour le placeholder. */
+  protected autoLabel(presta: PlanningPresta): string {
+    const slot = this.slotFor(presta);
+    if (!slot) return 'Invitée';
+    if (slot.type === SlotType.Mariee) return 'Mariée';
+    const siblings = this.planning.slotsOf(this.state, slot.artisteIndex);
+    let n = 0;
+    for (const s of siblings) {
+      if (s.type === SlotType.Invitee) n++;
+      if (s === slot) break;
+    }
+    return `Invitée ${n}`;
+  }
+
+  /** Plage horaire calculée d'une prestation (« 9h00 → 10h15 »). */
+  protected timeRange(presta: PlanningPresta): string {
+    const slot = this.slotFor(presta);
+    if (!slot) return '';
+    const start = slot.maquillage || slot.coiffure;
+    if (!start && !slot.fin) return '';
+    return `${start || '—'} → ${slot.fin || '—'}`;
+  }
+
+  /** Heure d'arrivée de l'artiste pour cette ligne (vide si non concernée). */
+  protected arrivalOf(presta: PlanningPresta): string {
+    return this.slotFor(presta)?.arrivee ?? '';
   }
 
   protected addArtist(): void {

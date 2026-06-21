@@ -1,5 +1,5 @@
 <div class="cloecss">
-  <div id="htmlContent">
+  <div id="htmlContent" class="planning">
     <img src="logo.png" class="logo" alt="" />
 
     <p class="rosebg">{{ fr() ? 'PLANNING' : 'SCHEDULE' }}</p>
@@ -7,62 +7,55 @@
     <div class="ligne"></div>
 
     <div class="content">
-      <div class="tableplann">
-        @for (h of headers; track $index) {
-          <div class="relative containerline">
-            <div class="orientedline"></div>
-            <p>&nbsp;</p>
-          </div>
-        }
-        <div class="absolute">
-          @for (h of headers; track $index) {
-            <div class="relative">
-              <p>{{ fr() ? h.fr : h.en }}</p>
-            </div>
-          }
-        </div>
-      </div>
-
       @for (entry of entries(); track entry.index) {
-        <table>
-          <tr class="firstrow">
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-            <td class="horaire">&nbsp;</td>
-          </tr>
-          @for (slot of entry.rows; track $index; let i = $index) {
-            <tr class="relative">
-              <p class="invitee" [class.onlyonerow]="entry.rows.length === 1">
-                {{ slotLabel(entry, i) }}
-              </p>
-              <td class="horaire noborder" [class.odd]="i % 2 !== 0">&nbsp;</td>
-              @for (col of columns; track col; let j = $index) {
-                <td
-                  class="horaire"
-                  [attr.rowspan]="rowSpan(entry.cells, i, j)"
-                  [attr.colspan]="colSpan(entry.cells, i, j)"
-                  [class.none]="hidden(entry.cells, i, j)"
-                  [class.odd]="i % 2 !== 0"
-                >
-                  {{ cellText(entry.cells, i, j) }}
-                </td>
-              }
-            </tr>
+        <div class="ptable-wrap">
+          @if (multiArtist()) {
+            <p class="ptable__artist">
+              {{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}
+            </p>
           }
-        </table>
-        @if (multiArtist()) {
-          <p class="artist">{{ fr() ? 'Artiste' : 'Artist' }} : {{ artistName(entry.artist) }}</p>
-        }
+          <table class="ptable">
+            <thead>
+              <tr>
+                <th class="ptable__person">
+                  {{ multiArtist() ? entry.artist.prenom : fr() ? 'Invitées' : 'Guests' }}
+                </th>
+                @for (h of headers; track $index) {
+                  <th>{{ fr() ? h.fr : h.en }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (slot of entry.rows; track $index; let i = $index) {
+                <tr [class.alt]="i % 2 === 1">
+                  <td class="ptable__person">{{ slotLabel(entry, i) }}</td>
+                  @for (col of columns; track col; let j = $index) {
+                    <td
+                      class="ptable__cell"
+                      [attr.rowspan]="rowSpan(entry.cells, i, j)"
+                      [attr.colspan]="colSpan(entry.cells, i, j)"
+                      [class.none]="hidden(entry.cells, i, j)"
+                    >
+                      {{ cellText(entry.cells, i, j) }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
+
+      <p class="note">
+        {{
+          fr()
+            ? "Pour garantir l'excellence du résultat, il est indispensable de venir la peau nue et la chevelure sèche, lavée de la veille."
+            : 'To guarantee an excellent result, it is essential to arrive with bare skin and dry hair, washed the day before.'
+        }}
+      </p>
     </div>
 
-    <div class="bottomplann">
+    <div class="planfooter">
       <p class="rosebg">&nbsp;</p>
       <div class="botbot">
         <div class="adres">
@@ -71,7 +64,7 @@
           <p>{{ state().codepostal || (fr() ? 'Code postal + Ville' : 'Postal code + City') }}</p>
         </div>
         <p class="cont">CONTACT</p>
-        <div class="flex between">
+        <div class="contacts">
           @for (entry of entries(); track entry.index) {
             <div>
               <p>{{ artistName(entry.artist) }}</p>
