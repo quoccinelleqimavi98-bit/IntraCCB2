@@ -18,6 +18,7 @@
   }
   .between {
     justify-content: space-between;
+    align-items: flex-start;
   }
 
   #htmlContent {
@@ -72,12 +73,13 @@
     color: white;
   }
 
+  // Logo horizontal : dimensionné par la hauteur (robuste à tout ratio).
   .logo {
-    width: 21%;
-    margin: auto;
-    display: flex;
-    margin-top: 5px;
-    margin-bottom: 8px;
+    display: block;
+    height: 56px;
+    width: auto;
+    max-width: 70%;
+    margin: 6px auto 8px;
   }
 
   .date {
@@ -132,7 +134,7 @@
     text-align: right;
   }
   .client p {
-    text-align: right;
+    text-align: left;
   }
   .green {
     font-weight: bold;
@@ -199,11 +201,11 @@
 
   .iban p {
     color: #ab83ba;
-    font-size: 12px !important;
+    font-size: 10px !important;
   }
   .thank p {
     color: #87528e;
-    font-size: 29px !important;
+    font-size: 22px !important;
     text-align: center;
   }
 
