@@ -102,6 +102,12 @@
     color: var(--brand-strong);
     box-shadow: var(--shadow-sm);
   }
+
+  &--sm {
+    width: 32px;
+    height: 32px;
+    font-size: var(--fs-md);
+  }
 }
 
 // --- Champs de formulaire --------------------------------------------------

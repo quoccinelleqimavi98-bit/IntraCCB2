@@ -1,9 +1,14 @@
-<div class="editor">
+<div class="editor" [class.editor--preview]="viewMode() === 'preview'">
   <header class="editor__head">
     <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
     <h2>{{ isDevis ? 'Devis' : 'Facture' }} N° {{ values.numero }}-{{ values.annee }}</h2>
     <button class="btn btn--ghost btn--sm" (click)="toggleLang()">{{ lang }}</button>
   </header>
+
+  <div class="editor__viewtoggle">
+    <button [class.active]="viewMode() === 'form'" (click)="setView('form')">Édition</button>
+    <button [class.active]="viewMode() === 'preview'" (click)="setView('preview')">Aperçu</button>
+  </div>
 
   <div class="editor__panes">
     <div class="editor__form">
@@ -50,6 +55,11 @@
               <p class="presta-titre">{{ presta.nom }}</p>
             } @else {
               <div class="presta-row">
+                <input
+                  class="input presta-nom"
+                  [(ngModel)]="presta.nom"
+                  placeholder="Désignation"
+                />
                 <div class="qte">
                   <button
                     class="icon-btn icon-btn--sm"
@@ -62,12 +72,17 @@
                   <button class="icon-btn icon-btn--sm" (click)="addQte(presta)">+</button>
                 </div>
                 <input
-                  class="input presta-nom"
-                  [(ngModel)]="presta.nom"
-                  placeholder="Désignation"
+                  class="input presta-prix"
+                  [(ngModel)]="presta.prix"
+                  inputmode="decimal"
+                  placeholder="Prix"
                 />
-                <input class="input presta-prix" [(ngModel)]="presta.prix" placeholder="Prix" />
-                <input class="input presta-reduc" [(ngModel)]="presta.reduc" placeholder="%" />
+                <input
+                  class="input presta-reduc"
+                  [(ngModel)]="presta.reduc"
+                  inputmode="numeric"
+                  placeholder="%"
+                />
                 <span class="presta-total">{{ lineLabel(presta) }}</span>
               </div>
             }
@@ -99,15 +114,15 @@
           <div class="grid">
             <div class="field">
               <label>Déjà versé</label>
-              <input class="input" [(ngModel)]="values.acompte" />
+              <input class="input" [(ngModel)]="values.acompte" inputmode="decimal" />
             </div>
             <div class="field">
               <label>Solde</label>
-              <input class="input" [(ngModel)]="values.solde" />
+              <input class="input" [(ngModel)]="values.solde" inputmode="decimal" />
             </div>
             <div class="field">
               <label>Réellement versé</label>
-              <input class="input" [(ngModel)]="values.realsold" />
+              <input class="input" [(ngModel)]="values.realsold" inputmode="decimal" />
             </div>
             <div class="field">
               <label>Mode de paiement</label>
@@ -115,7 +130,7 @@
             </div>
             <div class="field">
               <label>Paiement prestataires</label>
-              <input class="input" [(ngModel)]="values.paiementPrestas" />
+              <input class="input" [(ngModel)]="values.paiementPrestas" inputmode="decimal" />
             </div>
             <label class="checkbox">
               <input type="checkbox" [(ngModel)]="acquittee" />
@@ -131,16 +146,24 @@
     </div>
 
     <div class="editor__preview">
-      <div class="preview-scroll">
-        <app-document-pdf
-          [mode]="mode()"
-          [lang]="lang"
-          [prestas]="prestas"
-          [client]="journee().client"
-          [values]="values"
-          [modedevis]="modedevis"
-          [acquittee]="acquittee"
-        />
+      <div class="preview-scroll" #previewHost>
+        <div
+          class="preview-stage"
+          [style.width.px]="595 * previewScale()"
+          [style.height.px]="840 * previewScale()"
+        >
+          <div class="preview-zoom" [style.transform]="'scale(' + previewScale() + ')'">
+            <app-document-pdf
+              [mode]="mode()"
+              [lang]="lang"
+              [prestas]="prestas"
+              [client]="journee().client"
+              [values]="values"
+              [modedevis]="modedevis"
+              [acquittee]="acquittee"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>

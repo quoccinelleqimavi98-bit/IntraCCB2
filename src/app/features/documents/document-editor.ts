@@ -1,4 +1,15 @@
-import { Component, ElementRef, OnInit, inject, input, output } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnInit,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -31,10 +42,12 @@ import { DocumentKind, DocumentValues } from './document.types';
   templateUrl: './document-editor.html',
   styleUrl: './document-editor.scss',
 })
-export class DocumentEditor implements OnInit {
+export class DocumentEditor implements OnInit, AfterViewInit {
   private readonly pricing = inject(PricingService);
   private readonly pdf = inject(PdfService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
 
   readonly journee = input.required<Journee>();
   readonly mode = input.required<DocumentKind>();
@@ -65,6 +78,34 @@ export class DocumentEditor implements OnInit {
   protected lang = Langue.Francais;
   protected modedevis: 'Mariage' | 'Autre' = 'Mariage';
   protected acquittee = false;
+
+  /** Vue active sur mobile : formulaire ou aperçu. */
+  protected readonly viewMode = signal<'form' | 'preview'>('form');
+  /** Échelle d'affichage de l'aperçu (1 sur desktop, réduit sur mobile). */
+  protected readonly previewScale = signal(1);
+
+  ngAfterViewInit(): void {
+    const host = this.previewHost()?.nativeElement;
+    if (!host) return;
+    const observer = new ResizeObserver(() => this.computeScale());
+    observer.observe(host);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.computeScale();
+  }
+
+  protected setView(mode: 'form' | 'preview'): void {
+    this.viewMode.set(mode);
+    queueMicrotask(() => this.computeScale());
+  }
+
+  /** Met l'aperçu à l'échelle de la largeur réellement disponible (595px = pleine taille). */
+  private computeScale(): void {
+    const host = this.previewHost()?.nativeElement;
+    if (!host) return;
+    const available = host.clientWidth - 24; // padding du conteneur
+    if (available < 50) return; // conteneur masqué : on garde l'échelle courante
+    this.previewScale.set(Math.max(0.3, Math.min(1, available / 595)));
+  }
 
   ngOnInit(): void {
     const data = this.journee();

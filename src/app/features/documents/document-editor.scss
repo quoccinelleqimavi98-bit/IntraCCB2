@@ -20,18 +20,23 @@
     font-size: var(--fs-lg);
     color: var(--brand-deep);
     @include truncate;
+
+    @include mobile {
+      font-size: var(--fs-md);
+    }
   }
+}
+
+// Bascule Édition / Aperçu — mobile uniquement
+.editor__viewtoggle {
+  display: none;
 }
 
 .editor__panes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(440px, 1fr) minmax(300px, 540px);
   gap: var(--space-5);
   align-items: start;
-
-  @include tablet-down {
-    grid-template-columns: 1fr;
-  }
 }
 
 .editor__form {
@@ -79,6 +84,8 @@
   }
 }
 
+// --- Lignes de prestation --------------------------------------------------
+
 .prestas {
   @include flex-column(var(--space-2));
 }
@@ -93,32 +100,20 @@
 
 .presta-row {
   display: grid;
-  grid-template-columns: auto 1fr 72px 56px 64px;
+  grid-template-columns: minmax(0, 1fr) auto 62px 46px 58px;
   gap: var(--space-2);
   align-items: center;
-
-  @include mobile {
-    grid-template-columns: auto 1fr 56px;
-
-    .presta-nom {
-      grid-column: 1 / -1;
-      order: -1;
-    }
-    .presta-total {
-      grid-column: 1 / -1;
-    }
-  }
 }
 
 .qte {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .qte-input {
-  width: 46px;
-  padding: 0 4px;
+  width: 40px;
+  padding: 0 2px;
   text-align: center;
 }
 
@@ -157,13 +152,11 @@
   font-weight: 600;
 }
 
+// --- Aperçu PDF ------------------------------------------------------------
+
 .editor__preview {
   position: sticky;
   top: 76px;
-
-  @include tablet-down {
-    position: static;
-  }
 }
 
 .preview-scroll {
@@ -176,9 +169,94 @@
   box-shadow: var(--shadow-sm);
 }
 
+.preview-stage {
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.preview-zoom {
+  width: 595px;
+  transform-origin: top left;
+}
+
 .editor__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: center;
+}
+
+// --- Mobile / tablette -----------------------------------------------------
+
+@include tablet-down {
+  .editor__viewtoggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--brand-soft);
+    border-radius: var(--radius-full);
+
+    button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 9px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      color: var(--brand-strong);
+      cursor: pointer;
+      transition: var(--transition);
+
+      &.active {
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+      }
+    }
+  }
+
+  .editor__panes {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .editor:not(.editor--preview) .editor__preview {
+    display: none;
+  }
+  .editor--preview .editor__form {
+    display: none;
+  }
+
+  .editor__preview {
+    position: static;
+  }
+
+  .preview-scroll {
+    padding: var(--space-2);
+  }
+
+  // Une ligne de prestation = une carte (désignation pleine largeur)
+  .presta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+  }
+
+  .presta-nom {
+    flex: 1 1 100%;
+  }
+
+  .presta-prix,
+  .presta-reduc {
+    flex: 1;
+    text-align: center;
+  }
+
+  .presta-total {
+    margin-left: auto;
+    align-self: center;
+  }
 }

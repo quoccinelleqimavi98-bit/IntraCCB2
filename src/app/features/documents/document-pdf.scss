@@ -73,11 +73,11 @@
   }
 
   .logo {
-    width: 30%;
+    width: 21%;
     margin: auto;
     display: flex;
     margin-top: 5px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .date {
@@ -106,9 +106,18 @@
     position: relative;
   }
 
+  .cloe {
+    width: 48%;
+  }
   .cloe p {
     font-weight: bold;
     position: relative;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+    overflow-wrap: anywhere;
+  }
+  .cloe .nobold {
+    font-size: 11px;
   }
   .nobold {
     font-weight: unset !important;
