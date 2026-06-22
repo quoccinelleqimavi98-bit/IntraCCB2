@@ -110,7 +110,11 @@ export class StatsService {
   /** Ce que je gagne sur une journée (planning si présent, sinon devis). */
   mineThisDay(journee: Journee): number {
     let total = 0;
-    if (journee.planning?.prestas) {
+    // On se base sur le devis tant qu'AUCUNE prestation n'a été posée au
+    // planning. Le mapper matérialise toujours `planning.prestas` (tableau vide
+    // si rien), donc on teste la longueur — sinon un planning vide masquerait le
+    // devis et la journée ressortirait à 0 € (ex. un « autre » comme un shooting).
+    if (journee.planning?.prestas?.length) {
       total += this.planningPrestasPrice(journee.planning.prestas, false);
       for (const p of journee.devis?.prestas ?? []) {
         if (p.kilorly && !(p.nom ?? '').includes('renfort')) total += this.calc(p);
@@ -168,7 +172,7 @@ export class StatsService {
       if (day.statut === Statut.Essai) time += 120;
       else if (day.statut === Statut.Autre) time += 240;
       else if (day.statut === Statut.Reserve) {
-        if (day.planning?.prestas) time += this.planningPrestasTime(day.planning.prestas);
+        if (day.planning?.prestas?.length) time += this.planningPrestasTime(day.planning.prestas);
         else time += this.prestasTime(day.devis?.prestas);
       }
     }
@@ -237,7 +241,7 @@ export class StatsService {
       let tot = 0;
       if (j.prestataires) tot += Number(j.prestataires);
       else for (const f of j.factures) if (f.paiementPrestas) tot += Number(f.paiementPrestas);
-      if (tot === 0 && j.planning?.prestas) {
+      if (tot === 0 && j.planning?.prestas?.length) {
         tot += this.planningPrestasPrice(j.planning.prestas, true);
       }
       if (j.devis?.prestas) tot += this.prestasPrice(j.devis.prestas, false, true);
