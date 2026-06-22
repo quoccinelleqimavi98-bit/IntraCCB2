@@ -207,15 +207,18 @@ export class StatsService {
 
   /** Reste à encaisser sur la période (par date de journée). */
   notPaid(journees: Journee[], year: number, month: number | null, withDemands = false): number {
-    // Tous les événements ayant un devis/planning, SAUF les demandes (qui ne
-    // comptent que pour l'estimation). Les clôturés sont inclus tant qu'il reste
-    // un solde. On retire la part déjà encaissée NETTE (les renforts sont déjà
-    // exclus des gains, on ne les soustrait donc pas une seconde fois).
-    let data = journees.filter((j) => this.inPeriod(j.date, year, month) && this.hasQuote(j));
+    // Reproduit fidèlement l'ancien site : pour chaque journée chiffrée (hors
+    // clôturées, et — sauf estimation — hors demandes) on prend MA part du jour
+    // (= total du devis débarrassé des renforts) moins ce que les factures ont
+    // déjà soldé. Les contributions négatives (journées déjà sur-encaissées) se
+    // compensent dans la somme, exactement comme avant.
+    let data = journees.filter(
+      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && this.hasQuote(j),
+    );
     if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
 
     let total = 0;
-    for (const j of data) total += this.mineThisDay(j) - this.alreadyPaidThisDay(j, false);
+    for (const j of data) total += this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
     return Math.trunc(total);
   }
 
@@ -271,15 +274,15 @@ export class StatsService {
     return this.sortByCreation(lignes);
   }
 
-  /** Journées avec un reste à encaisser sur la période (hors demandes). */
+  /** Journées avec un reste à encaisser sur la période (hors demandes et clôturées). */
   monthFacturesMissing(journees: Journee[], year: number, month: number | null): FactureLigne[] {
     const lignes: FactureLigne[] = [];
     const data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
+      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && j.statut !== Statut.Demande,
     );
     for (const j of data) {
       if (!this.hasQuote(j)) continue;
-      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, false);
+      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
       if (reste > 0) {
         lignes.push({
           nom: j.client.nom ?? '',
