@@ -16,9 +16,11 @@ import { blankJournee } from './core/factories/journee.factory';
 import { AuthService } from './core/services/auth.service';
 import { DialogService } from './core/services/dialog.service';
 import { PlanningStore } from './core/services/planning-store.service';
+import { SettingsService } from './core/services/settings.service';
 import { frenchLongDate, parseFrDate } from './core/utils/date.utils';
 import { deepClone } from './core/utils/object.utils';
 import { mariagesNetUrl, relanceBody, relanceSubject } from './core/utils/relance.utils';
+import { Admin } from './features/admin/admin';
 import { Calendar } from './features/calendar/calendar';
 import { Dashboard } from './features/dashboard/dashboard';
 import { DocumentEditor } from './features/documents/document-editor';
@@ -37,6 +39,7 @@ import { LEGEND_STATUTS, STATUT_UI } from './shared/statut-ui';
   selector: 'app-root',
   imports: [
     FormsModule,
+    Admin,
     Calendar,
     Dashboard,
     JourneeDetail,
@@ -52,6 +55,7 @@ export class App {
   private readonly auth = inject(AuthService);
   private readonly store = inject(PlanningStore);
   private readonly dialog = inject(DialogService);
+  private readonly settings = inject(SettingsService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly docEditorRef = viewChild(DocumentEditor);
@@ -60,15 +64,23 @@ export class App {
   protected readonly authenticated = this.auth.authenticated;
   protected readonly loading = this.store.loading;
   protected readonly error = this.store.error;
-  protected readonly domaines = this.store.domaines;
   protected readonly catalog = this.store.catalog;
   protected readonly upcoming = this.store.upcoming;
+
+  /** Domaines du backend + domaines ajoutés en admin. */
+  protected readonly domaines = computed(() => [
+    ...this.store.domaines(),
+    ...this.settings.domaines(),
+  ]);
 
   protected readonly legendStatuts = LEGEND_STATUTS;
   protected readonly statutUi = STATUT_UI;
 
   /** Onglet de l'accueil : calendrier ou tableau de bord. */
   protected readonly homeTab = signal<'calendrier' | 'bilan'>('calendrier');
+
+  /** Espace d'administration ouvert. */
+  protected readonly adminOpen = signal(false);
 
   /** Journée en cours d'édition (copie de travail), ou null sur le calendrier. */
   protected readonly selected = signal<Journee | null>(null);
@@ -111,14 +123,47 @@ export class App {
     const onPop = (): void => this.onPopState();
     window.addEventListener('popstate', onPop);
     this.destroyRef.onDestroy(() => window.removeEventListener('popstate', onPop));
+
+    // Confirme avant un rechargement / une fermeture de l'app (utile sur mobile).
+    const onBeforeUnload = (event: BeforeUnloadEvent): void => {
+      if (!this.authenticated()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    this.destroyRef.onDestroy(() => window.removeEventListener('beforeunload', onBeforeUnload));
+  }
+
+  // --- Administration --------------------------------------------------------
+
+  protected openAdmin(): void {
+    this.adminOpen.set(true);
+  }
+
+  protected closeAdmin(): void {
+    this.adminOpen.set(false);
+  }
+
+  /** Nombre de jours avant un événement, en clair. */
+  protected daysUntil(date: string): string {
+    const target = parseFrDate(date);
+    if (!target) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
+    if (diff <= 0) return "aujourd'hui";
+    if (diff === 1) return 'demain';
+    if (diff < 31) return `dans ${diff} jours`;
+    const months = Math.round(diff / 30);
+    return `dans ${months} mois`;
   }
 
   // --- Bouton retour matériel / navigateur ----------------------------------
 
-  /** Profondeur de navigation : 0 accueil, 1 fiche, 2 éditeur. */
+  /** Profondeur de navigation : 0 accueil, 1 fiche/admin, 2 éditeur. */
   private viewDepth(): number {
     if (this.documentRequest() !== null || this.planningOpen()) return 2;
-    if (this.selected() !== null) return 1;
+    if (this.selected() !== null || this.adminOpen()) return 1;
     return 0;
   }
 
@@ -154,6 +199,8 @@ export class App {
       const editor = this.planEditorRef();
       if (editor) await editor.attemptClose();
       else this.onPlanningClosed();
+    } else if (this.adminOpen()) {
+      this.adminOpen.set(false);
     } else if (this.selected() !== null) {
       await this.closeFiche();
     }

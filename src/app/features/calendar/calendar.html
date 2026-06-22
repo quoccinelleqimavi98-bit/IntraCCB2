@@ -1,7 +1,18 @@
 <div class="cal card">
   <header class="cal__head">
     <button class="icon-btn" (click)="prevMonth()" aria-label="Mois précédent">‹</button>
-    <h2 class="cal__month">{{ monthLabel() }}</h2>
+    <div class="cal__pickers">
+      <select class="select" [ngModel]="monthIndex()" (ngModelChange)="monthIndex.set($event)">
+        @for (m of months; track $index) {
+          <option [ngValue]="$index">{{ m }}</option>
+        }
+      </select>
+      <select class="select" [ngModel]="year()" (ngModelChange)="year.set($event)">
+        @for (y of yearOptions(); track y) {
+          <option [ngValue]="y">{{ y }}</option>
+        }
+      </select>
+    </div>
     <button class="icon-btn" (click)="nextMonth()" aria-label="Mois suivant">›</button>
   </header>
 
@@ -40,7 +51,7 @@
     </div>
 
     @for (key of [gridKey()]; track key) {
-      <div class="cal__grid">
+      <div class="cal__grid" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
         @for (blank of cells().blanks; track $index) {
           <span class="cell cell--blank"></span>
         }

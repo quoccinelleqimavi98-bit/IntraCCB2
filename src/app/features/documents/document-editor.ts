@@ -26,6 +26,7 @@ import {
 import { PdfService } from '../../core/services/pdf.service';
 import { PricingService } from '../../core/services/pricing.service';
 import { DialogService } from '../../core/services/dialog.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { formatAmount } from '../../core/utils/money.utils';
 import { addDaysFr, todayFrDate } from '../../core/utils/date.utils';
 import { DocumentPdf } from './document-pdf';
@@ -47,6 +48,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   private readonly pricing = inject(PricingService);
   private readonly pdf = inject(PdfService);
   private readonly dialog = inject(DialogService);
+  private readonly settings = inject(SettingsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
@@ -116,7 +118,11 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     const data = this.journee();
     const now = todayFrDate();
 
-    this.prestas = this.catalog().map((item) => ({ ...item, qte: 0 }));
+    this.prestas = this.catalog().map((item) => ({
+      ...item,
+      prix: item.titre ? item.prix : (this.settings.priceFor(item.nom) ?? item.prix),
+      qte: 0,
+    }));
     this.values = {
       date: now,
       numero: this.isDevis ? this.nextDevis() : this.nextFacture(),
@@ -132,6 +138,10 @@ export class DocumentEditor implements OnInit, AfterViewInit {
 
     if (this.isDevis) this.initDevis(data);
     else this.initFacture(data);
+
+    // Aperçu par défaut, sauf à la toute première création d'un devis.
+    const firstDevis = this.isDevis && !data.devis?.creation;
+    this.viewMode.set(firstDevis ? 'form' : 'preview');
 
     this.snapshot = this.fingerprint();
   }

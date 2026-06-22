@@ -1,0 +1,137 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.admin {
+  max-width: 900px;
+  margin: 0 auto;
+  @include flex-column(var(--space-4));
+  animation: fade-in 0.25s ease both;
+}
+
+.admin__bar {
+  position: sticky;
+  top: 60px;
+  z-index: 6;
+  @include flex-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+
+  h2 {
+    font-size: var(--fs-lg);
+    color: var(--brand-deep);
+    @include truncate;
+  }
+}
+
+.section {
+  padding: var(--space-5);
+
+  @include mobile {
+    padding: var(--space-4);
+  }
+}
+
+.section__head {
+  @include flex-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.section__title {
+  font-size: var(--fs-md);
+  color: var(--brand-strong);
+  margin-bottom: var(--space-3);
+
+  .section__head & {
+    margin-bottom: 0;
+  }
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  display: block;
+  margin-top: 4px;
+}
+
+.narrow {
+  width: 120px;
+}
+
+// Tarifs
+.rows {
+  @include flex-column(var(--space-2));
+  margin-top: var(--space-3);
+}
+
+.prow {
+  @include flex-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+
+  &__name {
+    min-width: 0;
+    @include truncate;
+    font-weight: 600;
+  }
+}
+
+// Cartes éditables (domaines / prestataires)
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.ecard {
+  @include flex-column(var(--space-2));
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+
+  .input {
+    height: 38px;
+  }
+}
+
+.ecard__top {
+  @include flex(flex-start, center, var(--space-2));
+
+  .input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.km {
+  @include flex-between;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+.icon-btn.danger {
+  color: var(--danger);
+  &:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+}
+
+.admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  padding-bottom: var(--space-5);
+}

@@ -20,10 +20,19 @@
   <header class="appbar">
     <img src="logo.png" alt="" class="appbar__logo" />
     <span class="appbar__title">IntraCCB</span>
+    <button
+      class="appbar__admin icon-btn icon-btn--sm"
+      (click)="openAdmin()"
+      aria-label="Administration"
+    >
+      ⚙
+    </button>
   </header>
 
   <main class="page">
-    @if (documentRequest(); as doc) {
+    @if (adminOpen()) {
+      <app-admin [catalog]="catalog()" (closed)="closeAdmin()" />
+    } @else if (documentRequest(); as doc) {
       <app-document-editor
         [journee]="selected()!"
         [mode]="doc.mode"
@@ -78,7 +87,7 @@
 
         @if (upcoming(); as next) {
           <button class="next card" (click)="openUpcoming()">
-            <span class="next__label muted">Prochain événement</span>
+            <span class="next__label muted">Prochain événement · {{ daysUntil(next.date) }}</span>
             <span class="next__main">
               <span class="chip" [class]="statutUi[next.statut].cssClass">
                 <span class="chip__dot"></span>{{ statutUi[next.statut].label }}
@@ -86,6 +95,19 @@
               <strong>{{ next.client.nom || '—' }}</strong>
             </span>
             <span class="next__date">{{ next.date | frenchDate }}</span>
+            @if (next.mariage.domaine || next.mariage.ceremonie || next.client.tel) {
+              <span class="next__meta">
+                @if (next.mariage.domaine) {
+                  <span>📍 {{ next.mariage.domaine }}</span>
+                }
+                @if (next.mariage.ceremonie) {
+                  <span>⏰ Cérémonie {{ next.mariage.ceremonie }}</span>
+                }
+                @if (next.client.tel) {
+                  <span>📞 {{ next.client.tel }}</span>
+                }
+              </span>
+            }
           </button>
         }
 

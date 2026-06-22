@@ -52,7 +52,7 @@ export class StatsService {
     let prix = presta.prix ?? 0;
     if (presta.kilorly) {
       const qte = Number(presta.qte);
-      prix = qte <= 10 ? 0 : (qte - 10) * 2 * (presta.prix ?? 0);
+      prix = qte * 2 * (presta.prix ?? 0); // aller/retour, plus d'offert
     }
     if (presta.reduc) prix -= (prix * presta.reduc) / 100;
     if (Number.isInteger(presta.prix ?? 0) || presta.kilorly) prix = Math.floor(prix);
@@ -206,9 +206,9 @@ export class StatsService {
 
   /** Reste à encaisser sur la période (par date de journée). */
   notPaid(journees: Journee[], year: number, month: number | null, withDemands = false): number {
-    let data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && j.devis?.creation,
-    );
+    // Tout événement ayant un devis est compté (clôturés inclus) ; les demandes
+    // ne comptent que pour l'estimation.
+    let data = journees.filter((j) => this.inPeriod(j.date, year, month) && j.devis?.creation);
     if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
 
     let total = 0;
@@ -271,7 +271,7 @@ export class StatsService {
   /** Journées avec un reste à encaisser sur la période. */
   monthFacturesMissing(journees: Journee[], year: number, month: number | null): FactureLigne[] {
     const lignes: FactureLigne[] = [];
-    const data = journees.filter((j) => this.inPeriod(j.date, year, month) && j.etape !== 999);
+    const data = journees.filter((j) => this.inPeriod(j.date, year, month));
     for (const j of data) {
       if (!j.devis?.prestas) continue;
       const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);

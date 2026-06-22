@@ -1,0 +1,111 @@
+<div class="admin">
+  <header class="admin__bar">
+    <button class="btn btn--ghost btn--sm" (click)="closed.emit()">‹ Retour</button>
+    <h2>Administration</h2>
+    <button class="btn btn--primary btn--sm" (click)="save()">
+      {{ savedFlash ? '✓ Enregistré' : 'Enregistrer' }}
+    </button>
+  </header>
+
+  <!-- Paramètres généraux -->
+  <section class="card section">
+    <h3 class="section__title">Calculs</h3>
+    <div class="field">
+      <label>Abattement brut → net (%)</label>
+      <input class="input narrow" type="number" min="0" max="100" [(ngModel)]="taxPercent" />
+      <span class="muted hint">Le net affiché dans le bilan = montant − {{ taxPercent }} %.</span>
+    </div>
+  </section>
+
+  <!-- Tarifs de base -->
+  <section class="card section">
+    <h3 class="section__title">Tarifs de base des prestations</h3>
+    <p class="muted hint">Laisser vide pour conserver le prix du catalogue.</p>
+    <div class="rows">
+      @for (item of priced(); track item.nom) {
+        <label class="prow">
+          <span class="prow__name">{{ item.nom }}</span>
+          <input
+            class="input narrow"
+            inputmode="decimal"
+            [(ngModel)]="priceInputs[item.nom]"
+            [placeholder]="item.prix + '€'"
+          />
+        </label>
+      }
+    </div>
+  </section>
+
+  <!-- Domaines par défaut -->
+  <section class="card section">
+    <div class="section__head">
+      <h3 class="section__title">Domaines</h3>
+      <button class="btn btn--subtle btn--sm" (click)="addDomaine()">+ Ajouter</button>
+    </div>
+    <div class="cards">
+      @for (d of domaines; track $index) {
+        <div class="ecard">
+          <div class="ecard__top">
+            <input class="input" [(ngModel)]="d.domaine" placeholder="Nom du domaine" />
+            <button
+              class="icon-btn icon-btn--sm danger"
+              (click)="deleteDomaine($index)"
+              aria-label="Supprimer"
+            >
+              ×
+            </button>
+          </div>
+          <input class="input" [(ngModel)]="d.adresse" placeholder="Adresse" />
+          <input class="input" [(ngModel)]="d.codepostal" placeholder="Code postal & ville" />
+          <label class="km">
+            <span class="muted">Distance (km aller)</span>
+            <input class="input narrow" type="number" min="0" [(ngModel)]="d.qte" />
+          </label>
+        </div>
+      } @empty {
+        <p class="muted hint">Aucun domaine ajouté.</p>
+      }
+    </div>
+  </section>
+
+  <!-- Prestataires par défaut -->
+  <section class="card section">
+    <div class="section__head">
+      <h3 class="section__title">Prestataires par défaut</h3>
+      <button class="btn btn--subtle btn--sm" (click)="addArtist()">+ Ajouter</button>
+    </div>
+    <p class="muted hint">
+      Utilisés comme artistes d'un nouveau planning (à la place des défauts).
+    </p>
+    <div class="cards">
+      @for (a of artists; track $index) {
+        <div class="ecard">
+          <div class="ecard__top">
+            <input class="input" [(ngModel)]="a.prenom" placeholder="Prénom" />
+            <button
+              class="icon-btn icon-btn--sm danger"
+              (click)="deleteArtist($index)"
+              aria-label="Supprimer"
+            >
+              ×
+            </button>
+          </div>
+          <input class="input" [(ngModel)]="a.nom" placeholder="Nom" />
+          <input class="input" [(ngModel)]="a.tel" placeholder="Téléphone" />
+          <input class="input" [(ngModel)]="a.mail" placeholder="E-mail" />
+        </div>
+      } @empty {
+        <p class="muted hint">
+          Aucun prestataire par défaut (les artistes habituels sont utilisés).
+        </p>
+      }
+    </div>
+  </section>
+
+  <footer class="admin__actions">
+    <button class="btn btn--primary" (click)="save()">
+      {{ savedFlash ? '✓ Enregistré' : 'Enregistrer' }}
+    </button>
+    <button class="btn btn--danger" (click)="resetAll()">Réinitialiser</button>
+  </footer>
+</div>

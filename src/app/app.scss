@@ -62,6 +62,11 @@
   color: var(--brand-deep);
 }
 
+.appbar__admin {
+  margin-left: auto;
+  font-size: var(--fs-md);
+}
+
 // --- Page ------------------------------------------------------------------
 
 .page {
@@ -150,6 +155,15 @@
     text-transform: capitalize;
     color: var(--text-muted);
     font-size: var(--fs-sm);
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin-top: 2px;
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
   }
 }
 

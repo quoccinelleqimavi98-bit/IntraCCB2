@@ -26,6 +26,7 @@ import { DialogService } from '../../core/services/dialog.service';
 import { PdfService } from '../../core/services/pdf.service';
 import { PlanningService } from '../../core/services/planning.service';
 import { PricingService } from '../../core/services/pricing.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { formatAmount } from '../../core/utils/money.utils';
 import { PlanningPdf } from './planning-pdf';
 import { DEFAULT_ARTISTS } from './planning.constants';
@@ -48,6 +49,7 @@ export class PlanningEditor implements OnInit, AfterViewInit {
   private readonly pricing = inject(PricingService);
   private readonly pdf = inject(PdfService);
   private readonly dialog = inject(DialogService);
+  private readonly settings = inject(SettingsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly previewHost = viewChild<ElementRef<HTMLElement>>('previewHost');
@@ -86,8 +88,10 @@ export class PlanningEditor implements OnInit, AfterViewInit {
         codepostal: existing.codepostal ?? '',
       };
     } else {
+      const defaults = this.settings.artists();
+      const baseArtists = defaults.length > 0 ? defaults : DEFAULT_ARTISTS;
       this.state = {
-        artists: DEFAULT_ARTISTS.map((a) => ({ ...a })),
+        artists: baseArtists.map((a) => ({ ...a })),
         slots: [],
         prestas: [],
         ceremonie: j.mariage.ceremonie ?? '',
@@ -100,6 +104,7 @@ export class PlanningEditor implements OnInit, AfterViewInit {
       this.planning.build(j.devis?.prestas ?? [], this.catalog(), this.state);
     }
 
+    this.viewMode.set('preview'); // aperçu par défaut à l'ouverture
     this.snapshot = this.fingerprint();
   }
 

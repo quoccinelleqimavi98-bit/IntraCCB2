@@ -16,7 +16,7 @@ export class PricingService {
     const prix = presta.prix ?? 0;
     let total = prix * qte;
     if (presta.kilorly) {
-      total = qte <= 10 ? 0 : (qte - 10) * 2 * prix;
+      total = qte * 2 * prix; // aller/retour, tous les km facturés (plus d'offert)
     }
     if (presta.reduc) total -= (total * presta.reduc) / 100;
     if (Number.isInteger(prix) || presta.kilorly) total = Math.floor(total);

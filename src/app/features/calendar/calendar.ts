@@ -54,11 +54,19 @@ export class Calendar {
   readonly daySelected = output<string>();
 
   protected readonly weekDays = WEEKDAYS_FR;
+  protected readonly months = MONTHS_FR;
   protected readonly year = signal(new Date().getFullYear());
   protected readonly monthIndex = signal(new Date().getMonth());
   protected readonly search = signal('');
 
-  protected readonly monthLabel = computed(() => `${MONTHS_FR[this.monthIndex()]} ${this.year()}`);
+  /** Années sélectionnables (autour de l'année courante, sélection incluse). */
+  protected readonly yearOptions = computed(() => {
+    const base = new Date().getFullYear();
+    const years = new Set<number>();
+    for (let y = base - 4; y <= base + 4; y++) years.add(y);
+    years.add(this.year());
+    return [...years].sort((a, b) => a - b);
+  });
 
   /** Clé de remontage de la grille (déclenche l'animation au changement de mois). */
   protected readonly gridKey = computed(() => `${this.year()}-${this.monthIndex()}`);
@@ -110,7 +118,7 @@ export class Calendar {
     return this.store
       .calendarEntries()
       .filter((entry) => this.matches(entry, term))
-      .sort((a, b) => compareFrDates(a.date, b.date))
+      .sort((a, b) => compareFrDates(b.date, a.date)) // du futur vers le passé
       .map((journee) => ({
         journee,
         statutClass: statutClass(journee.statut, journee.etape),
@@ -148,6 +156,27 @@ export class Calendar {
     this.year.set(now.getFullYear());
     this.monthIndex.set(now.getMonth());
     this.search.set('');
+  }
+
+  // --- Balayage (mobile) : mois précédent/suivant ---------------------------
+
+  private touchX = 0;
+  private touchY = 0;
+
+  protected onTouchStart(event: TouchEvent): void {
+    const t = event.changedTouches[0];
+    this.touchX = t.clientX;
+    this.touchY = t.clientY;
+  }
+
+  protected onTouchEnd(event: TouchEvent): void {
+    const t = event.changedTouches[0];
+    const dx = t.clientX - this.touchX;
+    const dy = t.clientY - this.touchY;
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (dx > 0)
+      this.prevMonth(); // balayage vers la droite → mois précédent
+    else this.nextMonth(); // balayage vers la gauche → mois suivant
   }
 
   protected select(date: string): void {
