@@ -45,7 +45,6 @@ export enum DocumentMode {
   Devis = 'devis',
   Facture = 'facture',
   Planning = 'planning',
-  Renseignement = 'renseignement',
 }
 
 /** Rôle d'une ligne de planning. */
