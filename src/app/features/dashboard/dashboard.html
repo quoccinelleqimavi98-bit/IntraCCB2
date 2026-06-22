@@ -137,7 +137,7 @@
   <!-- Factures -->
   <div class="dash__row">
     <section class="card section">
-      <h3 class="section__title">Encaissé — {{ money(alreadyPaid()) }}€</h3>
+      <h3 class="section__title">Encaissé — {{ money(paidTotal()) }}€</h3>
       <div class="flist">
         @for (f of paidFactures(); track $index) {
           <button class="flist__row" (click)="openDay(f)">
@@ -152,7 +152,7 @@
     </section>
 
     <section class="card section">
-      <h3 class="section__title">À encaisser — {{ money(notPaid()) }}€</h3>
+      <h3 class="section__title">À encaisser — {{ money(missingTotal()) }}€</h3>
       <div class="flist">
         @for (f of missingFactures(); track $index) {
           <button class="flist__row" (click)="openDay(f)">

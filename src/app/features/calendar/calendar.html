@@ -30,7 +30,7 @@
   @if (search()) {
     <div class="results">
       @for (result of results(); track result.journee.date + '-' + result.journee.client.nom) {
-        <button class="results__item" (click)="select(result.journee.date)">
+        <button class="results__item" (click)="openResult(result.journee)">
           <span class="results__info">
             <span class="results__date">{{ result.journee.date | frenchDate }}</span>
             <span class="results__name">{{ result.journee.client.nom || '—' }}</span>

@@ -258,10 +258,16 @@ export class App {
 
   // --- Sélection / ouverture d'une journée ----------------------------------
 
-  protected onDaySelected(date: string): void {
-    const events = this.store.entriesOn(date);
-    this.eventIndex = 0;
-    this.open(events.length > 0 ? deepClone(events[0]) : blankJournee(date));
+  protected onDaySelected(target: { date: string; id?: number }): void {
+    const events = this.store.entriesOn(target.date);
+    // Si un identifiant d'événement est fourni (clic sur une ligne précise :
+    // facture, résultat de recherche, prochain événement), on ouvre CET
+    // événement, pas le premier du jour. Sinon (clic sur une case du
+    // calendrier) on ouvre le premier et la navigation jour/événement prend le
+    // relais.
+    const index = target.id !== undefined ? events.findIndex((e) => e.id === target.id) : -1;
+    this.eventIndex = index >= 0 ? index : 0;
+    this.open(events.length > 0 ? deepClone(events[this.eventIndex]) : blankJournee(target.date));
   }
 
   private open(journee: Journee): void {
@@ -350,20 +356,23 @@ export class App {
       const next = dated
         .filter((entry) => entry.date >= limit)
         .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
-      if (next) this.onDaySelected(next.journee.date);
+      if (next) this.onDaySelected({ date: next.journee.date, id: next.journee.id });
     } else {
       const limit = new Date(today);
       limit.setDate(limit.getDate() - 1);
       const previous = dated
         .filter((entry) => entry.date <= limit)
         .sort((a, b) => a.date.getTime() - b.date.getTime());
-      if (previous.length > 0) this.onDaySelected(previous[previous.length - 1].journee.date);
+      if (previous.length > 0) {
+        const target = previous[previous.length - 1].journee;
+        this.onDaySelected({ date: target.date, id: target.id });
+      }
     }
   }
 
   protected openUpcoming(): void {
     const next = this.upcoming();
-    if (next) this.onDaySelected(next.date);
+    if (next) this.onDaySelected({ date: next.date, id: next.id });
   }
 
   // --- Essai → mariage ------------------------------------------------------

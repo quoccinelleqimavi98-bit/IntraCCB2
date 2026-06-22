@@ -50,8 +50,8 @@ export class Dashboard {
   private readonly stats = inject(StatsService);
   private readonly settings = inject(SettingsService);
 
-  /** Ouvre la journée correspondant à une date (clic sur une facture). */
-  readonly daySelected = output<string>();
+  /** Ouvre l'événement précis d'une ligne (facture / reste à encaisser). */
+  readonly daySelected = output<{ date: string; id?: number }>();
 
   protected readonly year = signal(new Date().getFullYear());
   /** Mois sélectionné (1–12) ou null pour toute l'année. */
@@ -151,6 +151,22 @@ export class Dashboard {
     this.stats.monthFacturesMissing(this.entries(), this.year(), this.month()),
   );
 
+  /**
+   * Total réellement « à encaisser » = somme des lignes listées (restes > 0).
+   * Diffère de `notPaid()` (le KPI « Reste à encaisser ») qui est la position
+   * NETTE : une journée déjà sur-couverte par une facture — typiquement
+   * l'argent d'un renfort encaissé puis reversé — y compte en négatif et n'est
+   * donc pas listée. On affiche ici le total qui correspond aux lignes visibles.
+   */
+  protected readonly missingTotal = computed(() =>
+    this.missingFactures().reduce((sum, f) => sum + f.montant, 0),
+  );
+
+  /** Total encaissé correspondant aux lignes listées (cohérence en-tête/liste). */
+  protected readonly paidTotal = computed(() =>
+    this.paidFactures().reduce((sum, f) => sum + f.montant, 0),
+  );
+
   // --- Graphes ---------------------------------------------------------------
 
   private readonly series = computed(() => this.stats.yearSeries(this.entries()));
@@ -215,6 +231,6 @@ export class Dashboard {
   }
 
   protected openDay(ligne: FactureLigne): void {
-    this.daySelected.emit(ligne.date);
+    this.daySelected.emit({ date: ligne.date, id: ligne.id });
   }
 }

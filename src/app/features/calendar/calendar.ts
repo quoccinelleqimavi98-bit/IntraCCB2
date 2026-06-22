@@ -50,8 +50,8 @@ interface SearchResult {
 export class Calendar {
   private readonly store = inject(PlanningStore);
 
-  /** Ouverture d'une journée (date jj/mm/aaaa). */
-  readonly daySelected = output<string>();
+  /** Ouverture d'une journée (date + identifiant d'événement précis si connu). */
+  readonly daySelected = output<{ date: string; id?: number }>();
 
   protected readonly weekDays = WEEKDAYS_FR;
   protected readonly months = MONTHS_FR;
@@ -179,7 +179,13 @@ export class Calendar {
     else this.nextMonth(); // balayage vers la gauche → mois suivant
   }
 
+  /** Clic sur une case du calendrier : ouvre le premier événement du jour. */
   protected select(date: string): void {
-    this.daySelected.emit(date);
+    this.daySelected.emit({ date });
+  }
+
+  /** Clic sur un résultat de recherche : ouvre cet événement précis. */
+  protected openResult(journee: Journee): void {
+    this.daySelected.emit({ date: journee.date, id: journee.id });
   }
 }
