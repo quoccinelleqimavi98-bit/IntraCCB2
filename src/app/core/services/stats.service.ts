@@ -207,21 +207,21 @@ export class StatsService {
 
   /** Reste à encaisser sur la période (par date de journée). */
   notPaid(journees: Journee[], year: number, month: number | null, withDemands = false): number {
-    // Reproduit fidèlement l'app d'origine : événements non clôturés, avec un
-    // devis ; les demandes ne comptent que pour l'estimation.
-    let data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && j.devis?.creation,
-    );
+    // Tous les événements ayant un devis/planning, SAUF les demandes (qui ne
+    // comptent que pour l'estimation). Les clôturés sont inclus tant qu'il reste
+    // un solde. On retire la part déjà encaissée NETTE (les renforts sont déjà
+    // exclus des gains, on ne les soustrait donc pas une seconde fois).
+    let data = journees.filter((j) => this.inPeriod(j.date, year, month) && this.hasQuote(j));
     if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
 
     let total = 0;
-    for (const j of data) {
-      total += this.mineThisDay(j);
-      for (const f of j.factures) {
-        total -= f.realsold && f.realsold !== 0 ? Number(f.realsold) : Number(f.solde);
-      }
-    }
+    for (const j of data) total += this.mineThisDay(j) - this.alreadyPaidThisDay(j, false);
     return Math.trunc(total);
+  }
+
+  /** Vrai si la journée porte un devis chiffré (ou un planning de prestations). */
+  private hasQuote(j: Journee): boolean {
+    return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
   }
 
   /** Total reversé aux renforts sur la période. */
@@ -271,13 +271,15 @@ export class StatsService {
     return this.sortByCreation(lignes);
   }
 
-  /** Journées avec un reste à encaisser sur la période. */
+  /** Journées avec un reste à encaisser sur la période (hors demandes). */
   monthFacturesMissing(journees: Journee[], year: number, month: number | null): FactureLigne[] {
     const lignes: FactureLigne[] = [];
-    const data = journees.filter((j) => this.inPeriod(j.date, year, month) && j.etape !== 999);
+    const data = journees.filter(
+      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
+    );
     for (const j of data) {
-      if (!j.devis?.prestas) continue;
-      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
+      if (!this.hasQuote(j)) continue;
+      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, false);
       if (reste > 0) {
         lignes.push({
           nom: j.client.nom ?? '',
