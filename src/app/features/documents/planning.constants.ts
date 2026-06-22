@@ -1,16 +1,18 @@
 import { Artist } from '../../core/models';
 
-/** Artistes par défaut d'un nouveau planning (Cloé + renfort habituel). */
-export const DEFAULT_ARTISTS: ReadonlyArray<Artist> = [
-  {
-    prenom: 'Cloé',
-    nom: 'CHAUDRON',
-    tel: '+33 6 68 64 44 02',
-    mail: 'cloe.chaudron@outlook.com',
-    arrivee: '',
-    retouches: '',
-    disponibilite: '',
-  },
+/** Cloé — toujours l'artiste principal (index 0) d'un planning. */
+export const CLOE_ARTIST: Artist = {
+  prenom: 'Cloé',
+  nom: 'CHAUDRON',
+  tel: '+33 6 68 64 44 02',
+  mail: 'cloe.chaudron@outlook.com',
+  arrivee: '',
+  retouches: '',
+  disponibilite: '',
+};
+
+/** Renforts par défaut (hors Cloé), si l'admin n'en a pas défini. */
+export const DEFAULT_RENFORTS: ReadonlyArray<Artist> = [
   {
     prenom: 'Celma',
     nom: 'SAHIDET',

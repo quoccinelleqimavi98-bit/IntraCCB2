@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 
 import { Statut } from '../../core/models';
 import { PlanningStore } from '../../core/services/planning-store.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { FactureLigne, StatsService } from '../../core/services/stats.service';
 import { MONTHS_FR } from '../../core/utils/calendar.utils';
 import { formatAmount } from '../../core/utils/money.utils';
@@ -47,6 +48,7 @@ interface SeriesView {
 export class Dashboard {
   private readonly store = inject(PlanningStore);
   private readonly stats = inject(StatsService);
+  private readonly settings = inject(SettingsService);
 
   /** Ouvre la journée correspondant à une date (clic sur une facture). */
   readonly daySelected = output<string>();
@@ -113,9 +115,9 @@ export class Dashboard {
     return { time: `${Math.trunc(mins / 60)}h ${mins % 60}min`, rate };
   }
 
-  /** Montant net après abattement de 24 % (micro-entreprise). */
+  /** Montant net après abattement (taux configurable en admin). */
   protected net(amount: number): number {
-    return Math.trunc(amount - amount * 0.24);
+    return Math.trunc(amount - amount * this.settings.taxRate());
   }
 
   // --- Compteurs de statuts --------------------------------------------------

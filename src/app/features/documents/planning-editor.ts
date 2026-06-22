@@ -29,7 +29,7 @@ import { PricingService } from '../../core/services/pricing.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { formatAmount } from '../../core/utils/money.utils';
 import { PlanningPdf } from './planning-pdf';
-import { DEFAULT_ARTISTS } from './planning.constants';
+import { CLOE_ARTIST, DEFAULT_RENFORTS } from './planning.constants';
 import { PlanningEditorState } from './planning.types';
 
 /**
@@ -88,8 +88,8 @@ export class PlanningEditor implements OnInit, AfterViewInit {
         codepostal: existing.codepostal ?? '',
       };
     } else {
-      const defaults = this.settings.artists();
-      const baseArtists = defaults.length > 0 ? defaults : DEFAULT_ARTISTS;
+      const renforts = this.settings.artists() ?? DEFAULT_RENFORTS;
+      const baseArtists = [CLOE_ARTIST, ...renforts];
       this.state = {
         artists: baseArtists.map((a) => ({ ...a })),
         slots: [],

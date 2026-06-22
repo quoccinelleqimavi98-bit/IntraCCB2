@@ -25,6 +25,8 @@ export interface CatalogItem {
   reduc?: number;
   /** Facturé au kilomètre (10 premiers offerts, ×2 aller/retour). */
   kilorly?: boolean;
+  /** Frais au km sans les 10 km offerts (tous les km facturés). */
+  fullKm?: boolean;
   /** Facturé à l'heure. */
   hourly?: boolean;
   /** Forfait mariée (sert au calcul des arrhes : 30 %). */

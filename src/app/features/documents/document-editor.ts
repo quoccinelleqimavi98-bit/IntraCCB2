@@ -229,6 +229,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       match.prix = presta.prix;
       match.reduc = presta.reduc ?? 0;
       match.nom = presta.nom;
+      if (presta.fullKm) match.fullKm = true;
     } else {
       const extra: Presta = {
         qte: presta.qte,
@@ -237,6 +238,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
         reduc: presta.reduc ?? 0,
       };
       if (presta.kilorly || presta.nom.includes('Frais de déplacement')) extra.kilorly = true;
+      if (presta.fullKm) extra.fullKm = true;
       this.prestas.push(extra);
     }
   }

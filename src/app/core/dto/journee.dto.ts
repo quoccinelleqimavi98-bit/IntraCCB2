@@ -17,6 +17,7 @@ export interface PrestaDto {
   prix?: number | string;
   reduc?: number | string;
   kilorly?: boolean;
+  fullkm?: boolean;
   hourly?: boolean;
   bride?: boolean;
   onlyOne?: boolean;

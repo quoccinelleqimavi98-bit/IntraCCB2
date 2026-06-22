@@ -8,17 +8,17 @@ export interface AdminSettings {
   taxRate: number;
   /** Prix de base par nom de prestation (remplace celui du catalogue). */
   priceOverrides: Record<string, number>;
-  /** Domaines ajoutés par l'utilisateur (en plus de ceux du backend). */
-  domaines: Domaine[];
-  /** Prestataires par défaut d'un nouveau planning (remplace ceux par défaut). */
-  artists: Artist[];
+  /** Liste des domaines (null = non personnalisée → ceux du backend). */
+  domaines: Domaine[] | null;
+  /** Renforts (artistes hors Cloé) (null = non personnalisée → valeurs par défaut). */
+  artists: Artist[] | null;
 }
 
 const DEFAULTS: AdminSettings = {
   taxRate: 0.24,
   priceOverrides: {},
-  domaines: [],
-  artists: [],
+  domaines: null,
+  artists: null,
 };
 
 const STORAGE_KEY = 'ccb-admin-settings';
@@ -48,8 +48,8 @@ export class SettingsService {
     const clean: AdminSettings = {
       taxRate: Number.isFinite(settings.taxRate) ? settings.taxRate : DEFAULTS.taxRate,
       priceOverrides: settings.priceOverrides ?? {},
-      domaines: settings.domaines ?? [],
-      artists: settings.artists ?? [],
+      domaines: settings.domaines ?? null,
+      artists: settings.artists ?? null,
     };
     this._settings.set(clean);
     try {

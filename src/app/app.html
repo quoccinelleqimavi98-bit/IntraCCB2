@@ -31,7 +31,7 @@
 
   <main class="page">
     @if (adminOpen()) {
-      <app-admin [catalog]="catalog()" (closed)="closeAdmin()" />
+      <app-admin (closed)="closeAdmin()" />
     } @else if (documentRequest(); as doc) {
       <app-document-editor
         [journee]="selected()!"

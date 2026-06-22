@@ -1,15 +1,17 @@
-import { Component, OnInit, computed, inject, input, output } from '@angular/core';
+import { Component, OnInit, computed, inject, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { Artist, CatalogItem, Domaine } from '../../core/models';
+import { Artist, Domaine } from '../../core/models';
+import { PlanningStore } from '../../core/services/planning-store.service';
 import { AdminSettings, SettingsService } from '../../core/services/settings.service';
 import { DialogService } from '../../core/services/dialog.service';
+import { DEFAULT_RENFORTS } from '../documents/planning.constants';
 
 /**
  * Espace d'administration (sans mot de passe) : tarifs de base des prestations,
- * domaines et prestataires par défaut, taux d'abattement brut/net. Les réglages
- * sont persistés localement par le `SettingsService` et surchargent les données
- * du backend (en lecture seule).
+ * domaines de réception, renforts (prestataires hors Cloé), taux d'abattement
+ * brut/net. Toutes ces données sont éditables (ajout / modification /
+ * suppression) et persistées localement par le `SettingsService`.
  */
 @Component({
   selector: 'app-admin',
@@ -19,14 +21,14 @@ import { DialogService } from '../../core/services/dialog.service';
 })
 export class Admin implements OnInit {
   private readonly settings = inject(SettingsService);
+  private readonly store = inject(PlanningStore);
   private readonly dialog = inject(DialogService);
 
-  readonly catalog = input<CatalogItem[]>([]);
   readonly closed = output<void>();
 
   /** Prestations tarifables (hors titres de section). */
   protected readonly priced = computed(() =>
-    this.catalog().filter((c) => !c.titre && c.prix !== undefined && c.prix !== null),
+    this.store.catalog().filter((c) => !c.titre && c.prix !== undefined && c.prix !== null),
   );
 
   // État éditable (copie de travail, enregistrée explicitement).
@@ -39,12 +41,19 @@ export class Admin implements OnInit {
   ngOnInit(): void {
     const s = this.settings.settings();
     this.taxPercent = Math.round(s.taxRate * 100);
+
     this.priceInputs = {};
     for (const [nom, prix] of Object.entries(s.priceOverrides)) {
       this.priceInputs[nom] = String(prix);
     }
-    this.domaines = s.domaines.map((d) => ({ ...d }));
-    this.artists = s.artists.map((a) => ({ ...a }));
+
+    // Domaines : liste personnalisée si elle existe, sinon celle du backend.
+    const baseDomaines = s.domaines ?? this.store.domaines();
+    this.domaines = baseDomaines.map((d) => ({ ...d }));
+
+    // Renforts : liste personnalisée si elle existe, sinon les renforts par défaut.
+    const baseArtists = s.artists ?? DEFAULT_RENFORTS;
+    this.artists = baseArtists.map((a) => ({ ...a }));
   }
 
   protected addDomaine(): void {
@@ -91,9 +100,11 @@ export class Admin implements OnInit {
   }
 
   protected async resetAll(): Promise<void> {
-    const ok = await this.dialog.confirm('Réinitialiser tous les réglages admin ?');
+    const ok = await this.dialog.confirm(
+      'Réinitialiser tous les réglages admin (retour aux valeurs par défaut) ?',
+    );
     if (!ok) return;
-    this.settings.replace({ taxRate: 0.24, priceOverrides: {}, domaines: [], artists: [] });
+    this.settings.replace({ taxRate: 0.24, priceOverrides: {}, domaines: null, artists: null });
     this.ngOnInit();
   }
 }

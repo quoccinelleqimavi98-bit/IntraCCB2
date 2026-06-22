@@ -67,11 +67,8 @@ export class App {
   protected readonly catalog = this.store.catalog;
   protected readonly upcoming = this.store.upcoming;
 
-  /** Domaines du backend + domaines ajoutés en admin. */
-  protected readonly domaines = computed(() => [
-    ...this.store.domaines(),
-    ...this.settings.domaines(),
-  ]);
+  /** Domaines : liste personnalisée en admin, sinon celle du backend. */
+  protected readonly domaines = computed(() => this.settings.domaines() ?? this.store.domaines());
 
   protected readonly legendStatuts = LEGEND_STATUTS;
   protected readonly statutUi = STATUT_UI;

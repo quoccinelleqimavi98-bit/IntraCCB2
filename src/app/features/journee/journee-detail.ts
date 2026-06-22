@@ -105,6 +105,7 @@ export class JourneeDetail {
       nom: 'Frais de déplacement Jour-J (Aller/Retour)',
       en: 'D-Day Travel Expenses (Round Trip)',
       kilorly: true,
+      fullKm: true, // nouvelles lignes : tous les km facturés (plus d'offert)
       prix: 0.4,
       qte: km,
     });

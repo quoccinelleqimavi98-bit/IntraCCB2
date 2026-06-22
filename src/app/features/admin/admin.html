@@ -36,12 +36,13 @@
     </div>
   </section>
 
-  <!-- Domaines par défaut -->
+  <!-- Domaines (ceux du sélecteur de la fiche) -->
   <section class="card section">
     <div class="section__head">
       <h3 class="section__title">Domaines</h3>
       <button class="btn btn--subtle btn--sm" (click)="addDomaine()">+ Ajouter</button>
     </div>
+    <p class="muted hint">Domaines proposés dans le sélecteur de la fiche événement.</p>
     <div class="cards">
       @for (d of domaines; track $index) {
         <div class="ecard">
@@ -68,14 +69,15 @@
     </div>
   </section>
 
-  <!-- Prestataires par défaut -->
+  <!-- Renforts (prestataires hors Cloé) -->
   <section class="card section">
     <div class="section__head">
-      <h3 class="section__title">Prestataires par défaut</h3>
+      <h3 class="section__title">Renforts (prestataires)</h3>
       <button class="btn btn--subtle btn--sm" (click)="addArtist()">+ Ajouter</button>
     </div>
     <p class="muted hint">
-      Utilisés comme artistes d'un nouveau planning (à la place des défauts).
+      Prestataires (hors Cloé) avec qui vous travaillez. Proposés comme artistes d'un nouveau
+      planning.
     </p>
     <div class="cards">
       @for (a of artists; track $index) {

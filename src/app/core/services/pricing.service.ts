@@ -16,7 +16,9 @@ export class PricingService {
     const prix = presta.prix ?? 0;
     let total = prix * qte;
     if (presta.kilorly) {
-      total = qte * 2 * prix; // aller/retour, tous les km facturés (plus d'offert)
+      // Frais au km, aller/retour. Les anciens devis gardent les 10 km offerts ;
+      // les nouvelles lignes (fullKm) facturent tous les km.
+      total = presta.fullKm ? qte * 2 * prix : qte <= 10 ? 0 : (qte - 10) * 2 * prix;
     }
     if (presta.reduc) total -= (total * presta.reduc) / 100;
     if (Number.isInteger(prix) || presta.kilorly) total = Math.floor(total);
