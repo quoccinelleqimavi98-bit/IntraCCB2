@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, from, map } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { JourneeDto, PrestaDto } from '../dto/journee.dto';
@@ -12,10 +12,11 @@ import { parseAmount } from '../utils/money.utils';
  * Accès à l'API. Unique point de contact réseau de l'application.
  *
  * Toutes les méthodes renvoient des modèles de DOMAINE (jamais des DTO) ; la
- * traduction est déléguée aux mappers. On utilise `HttpClient` classique
- * (réponses lisibles, gestion d'erreurs RxJS) — on abandonne le `fetch` en
- * `no-cors` de l'app d'origine, inutile puisque le front et l'API partagent le
- * même domaine en production.
+ * traduction est déléguée aux mappers. En production le front et l'API
+ * partagent le même domaine : on utilise alors `HttpClient` (réponses lisibles,
+ * gestion d'erreurs RxJS). Lorsque l'app est servie depuis une autre origine
+ * (GitHub Pages), les écritures repassent par un `fetch` en `no-cors` comme
+ * l'app d'origine, faute d'en-têtes CORS côté backend (voir `post`).
  *
  * Le contrat REST cible (quand le PHP sera réécrit) est décrit dans
  * docs/api-contract.md ; seul ce service et les mappers changeront alors.
@@ -27,6 +28,24 @@ export class ApiService {
 
   /** Identifiant d'artiste attendu par l'API actuelle. */
   private readonly artiste = 'cloe';
+
+  /**
+   * Vrai si l'API est servie depuis une autre origine que la page (typiquement
+   * l'app hébergée sur GitHub Pages, `chiyanoyuuki.github.io`, alors que l'API
+   * reste sur `cloechaudronbeauty.com`). Dans ce cas les écritures POST ne
+   * peuvent pas passer par `HttpClient` : avec un `Content-Type: application/json`
+   * le navigateur déclenche un preflight CORS que le PHP n'autorise pas, et la
+   * sauvegarde échoue. On bascule alors sur un `fetch` en mode `no-cors`.
+   */
+  private readonly crossOrigin = this.detectCrossOrigin();
+
+  private detectCrossOrigin(): boolean {
+    try {
+      return new URL(this.baseUrl, window.location.href).origin !== window.location.origin;
+    } catch {
+      return false;
+    }
+  }
 
   /** Récupère toutes les journées du planning. */
   getJournees(): Observable<Journee[]> {
@@ -65,6 +84,21 @@ export class ApiService {
   }
 
   private post(endpoint: string, body: unknown): Observable<unknown> {
+    if (this.crossOrigin) {
+      // Origine différente (GitHub Pages…) : l'API n'expose pas d'en-têtes CORS.
+      // On envoie la requête en `no-cors`, comme l'ancien site : elle part et le
+      // backend l'enregistre, mais la réponse est opaque (illisible). C'est un
+      // envoi « fire-and-forget » — suffisant ici car on recharge ensuite.
+      const url = `${this.baseUrl}${endpoint}?artiste=${this.artiste}`;
+      return from(
+        fetch(url, {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json' },
+          mode: 'no-cors',
+        }),
+      );
+    }
     return this.http.post(`${this.baseUrl}${endpoint}`, body, {
       params: { artiste: this.artiste },
     });
