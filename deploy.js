@@ -32,7 +32,7 @@ try {
 
 const FTP_HOST = process.env.CCB_FTP_HOST || 'ftp.chcl8760.odns.fr';
 const FTP_USER = process.env.CCB_FTP_USER || 'chcl8760';
-const FTP_PASSWORD = process.env.CCB_FTP_PASSWORD || 'q8x3-7N5U-WR8}';
+const FTP_PASSWORD = process.env.CCB_FTP_PASSWORD || 'EP4S-dyzp-FAf!';
 const FTP_REMOTE_PATH = '/public_html/intraccb'; // remplace l'ancienne version
 const BUILD_DIR = path.join(__dirname, 'dist', 'intra-ccb2', 'browser');
 
@@ -102,3 +102,5 @@ async function deploy() {
     client.close();
   }
 }
+
+deploy();

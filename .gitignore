@@ -43,3 +43,4 @@ Thumbs.db
 
 # Données de test locales
 public/mockdata.json
+deploy.js
