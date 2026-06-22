@@ -12,6 +12,9 @@
           placeholder="Mot de passe"
           autocomplete="current-password"
         />
+        @if (authError()) {
+          <p class="gate__error">Mot de passe incorrect.</p>
+        }
         <button class="btn btn--primary btn--block" type="submit">Entrer</button>
       </form>
     </div>

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, from, map } from 'rxjs';
+import { Observable, catchError, from, map, of } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { JourneeDto, PrestaDto } from '../dto/journee.dto';
@@ -45,6 +45,25 @@ export class ApiService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Valide un mot de passe côté serveur (endpoint `cloeauth.php`, qui compare à
+   * un hash stocké sur le serveur — jamais dans le bundle). Renvoie `true` si
+   * le mot de passe est correct.
+   *
+   * En multi-origine (GitHub Pages) la réponse n'est pas lisible (no-cors), on
+   * retombe alors sur un verrou souple (toute saisie non vide) — la validation
+   * serveur n'est possible qu'en même origine (déploiement /intraccb).
+   */
+  login(password: string): Observable<boolean> {
+    if (this.crossOrigin) return of(password.trim().length > 0);
+    return this.http
+      .post<{ ok?: boolean }>(`${this.baseUrl}cloeauth.php`, { password })
+      .pipe(
+        map((res) => res?.ok === true),
+        catchError(() => of(false)),
+      );
   }
 
   /** Récupère toutes les journées du planning. */

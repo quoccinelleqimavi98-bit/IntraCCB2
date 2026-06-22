@@ -105,6 +105,8 @@ export class App {
   private ignorePop = false;
 
   protected passphrase = '';
+  /** Dernière tentative de déverrouillage rejetée (mot de passe incorrect). */
+  protected readonly authError = signal(false);
 
   constructor() {
     if (this.authenticated()) this.init();
@@ -204,10 +206,15 @@ export class App {
   }
 
   protected unlock(): void {
-    if (this.auth.unlock(this.passphrase)) {
-      this.passphrase = '';
-      this.init();
-    }
+    this.auth.unlock(this.passphrase).subscribe((ok) => {
+      if (ok) {
+        this.passphrase = '';
+        this.authError.set(false);
+        this.init();
+      } else {
+        this.authError.set(true);
+      }
+    });
   }
 
   private init(): void {
