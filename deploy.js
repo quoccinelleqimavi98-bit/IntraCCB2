@@ -13,10 +13,22 @@
  * Identifiants : repris de l'ancien deploy.js, surchargés par des variables
  * d'environnement si on préfère ne pas les garder en clair (CCB_FTP_*).
  */
-const ftp = require('basic-ftp');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
+
+// `basic-ftp` est une dépendance de dev : si elle manque, message clair plutôt
+// qu'une stack trace illisible (cause n°1 de « npm run deploy ne fait rien »).
+let ftp;
+try {
+  ftp = require('basic-ftp');
+} catch {
+  console.error(
+    "\n[deploy] Le module 'basic-ftp' est introuvable.\n" +
+      '         Lance d’abord :  npm install\n',
+  );
+  process.exit(1);
+}
 
 const FTP_HOST = process.env.CCB_FTP_HOST || 'ftp.chcl8760.odns.fr';
 const FTP_USER = process.env.CCB_FTP_USER || 'chcl8760';
@@ -54,6 +66,7 @@ async function uploadDir(client, localDir, remoteDir) {
 }
 
 async function deploy() {
+  console.log('=== Déploiement IntraCCB2 → ' + FTP_HOST + FTP_REMOTE_PATH + ' ===');
   console.log('Build de production (base-href ./)…');
   execSync('npx ng build --configuration production --base-href ./', { stdio: 'inherit' });
 
@@ -76,7 +89,14 @@ async function deploy() {
 
     console.log('Déploiement terminé : https://www.cloechaudronbeauty.com/intraccb');
   } catch (err) {
-    console.error('Échec du déploiement :', err);
+    console.error('\n[deploy] Échec du déploiement :', err && err.message ? err.message : err);
+    if (err && (err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED')) {
+      console.error(
+        '         Le serveur FTP est injoignable. Lance « npm run deploy » depuis\n' +
+          '         une machine ayant un accès FTP (le port 21 est souvent bloqué\n' +
+          '         dans les environnements cloud / CI).',
+      );
+    }
     process.exitCode = 1;
   } finally {
     client.close();
