@@ -1,0 +1,68 @@
+From 37a9654774e3a20c74a23a3d9c2f087609f1b58e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 22 Jun 2026 14:28:23 +0000
+Subject: [PATCH] =?UTF-8?q?fix(bilan):=20un=20planning=20vide=20ne=20masqu?=
+ =?UTF-8?q?e=20plus=20le=20devis=20(=C2=AB=20=C3=A0=20encaisser=20=C2=BB)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Le mapper matérialise toujours `planning.prestas` (tableau vide quand le
+backend renvoie `planning: {}`). `mineThisDay` testait la simple présence du
+tableau : un planning vide — fréquent sur les « autres » (shooting, tournage)
+sans planning détaillé — faisait tomber la part du jour à 0 €, et la journée
+disparaissait du « à encaisser » (ex. Sarah Alvino, devis 150 € non clôturé,
+sans facture).
+
+On teste désormais la LONGUEUR : tant qu'aucune prestation n'est posée au
+planning, on se base sur le devis — comme l'ancien site et comme le compte
+rendu de la fiche (`pricing.mine`). Même correctif sur le calcul des heures
+travaillées et la part des renforts.
+
+Rappel des règles, inchangées : un mariage demandé (non confirmé) reste exclu ;
+un mariage réservé et tout « autre » sont comptés dès le devis.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/core/services/stats.service.ts | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/app/core/services/stats.service.ts b/src/app/core/services/stats.service.ts
+index b58ed88..824e462 100644
+--- a/src/app/core/services/stats.service.ts
++++ b/src/app/core/services/stats.service.ts
+@@ -110,7 +110,11 @@ export class StatsService {
+   /** Ce que je gagne sur une journée (planning si présent, sinon devis). */
+   mineThisDay(journee: Journee): number {
+     let total = 0;
+-    if (journee.planning?.prestas) {
++    // On se base sur le devis tant qu'AUCUNE prestation n'a été posée au
++    // planning. Le mapper matérialise toujours `planning.prestas` (tableau vide
++    // si rien), donc on teste la longueur — sinon un planning vide masquerait le
++    // devis et la journée ressortirait à 0 € (ex. un « autre » comme un shooting).
++    if (journee.planning?.prestas?.length) {
+       total += this.planningPrestasPrice(journee.planning.prestas, false);
+       for (const p of journee.devis?.prestas ?? []) {
+         if (p.kilorly && !(p.nom ?? '').includes('renfort')) total += this.calc(p);
+@@ -168,7 +172,7 @@ export class StatsService {
+       if (day.statut === Statut.Essai) time += 120;
+       else if (day.statut === Statut.Autre) time += 240;
+       else if (day.statut === Statut.Reserve) {
+-        if (day.planning?.prestas) time += this.planningPrestasTime(day.planning.prestas);
++        if (day.planning?.prestas?.length) time += this.planningPrestasTime(day.planning.prestas);
+         else time += this.prestasTime(day.devis?.prestas);
+       }
+     }
+@@ -237,7 +241,7 @@ export class StatsService {
+       let tot = 0;
+       if (j.prestataires) tot += Number(j.prestataires);
+       else for (const f of j.factures) if (f.paiementPrestas) tot += Number(f.paiementPrestas);
+-      if (tot === 0 && j.planning?.prestas) {
++      if (tot === 0 && j.planning?.prestas?.length) {
+         tot += this.planningPrestasPrice(j.planning.prestas, true);
+       }
+       if (j.devis?.prestas) tot += this.prestasPrice(j.devis.prestas, false, true);
+-- 
+2.43.0
+
