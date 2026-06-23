@@ -46,4 +46,6 @@ export interface CatalogItem {
 /** Ligne de prestation sur un devis ou une facture. */
 export interface Presta extends CatalogItem {
   qte: Quantity;
+  /** Part réalisée par un prestataire/renfort (facture : ligne affichée à part). */
+  renfort?: boolean;
 }

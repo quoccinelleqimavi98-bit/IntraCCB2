@@ -213,12 +213,6 @@
                 {{ fr() ? 'Déjà versé' : 'Already Paid' }} : {{ money(values().acompte) }}€
               </p>
             }
-            @if (providerTotal() > 0) {
-              <p class="tinytext">
-                {{ fr() ? 'Paiement prestataires' : 'Provider payment' }} :
-                {{ money(providerTotal()) }}€
-              </p>
-            }
             @if (values().acompte !== '' || values().solde !== '') {
               <p class="tinytext bold rightalign">
                 {{ fr() ? 'Reste à payer' : 'Remaining balance' }} : {{ remaining() }}€

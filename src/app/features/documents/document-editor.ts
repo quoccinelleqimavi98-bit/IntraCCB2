@@ -222,13 +222,18 @@ export class DocumentEditor implements OnInit, AfterViewInit {
 
   /** Fusionne une prestation existante dans la liste (catalogue ou ligne libre). */
   private mergePresta(presta: Presta): void {
-    const match = this.prestas.find((p) => !p.titre && !!p.nom && presta.nom.includes(p.nom));
+    // Une ligne « part renfort » et la même prestation « part à moi » sont
+    // distinctes : on n'agrège que si le drapeau renfort correspond aussi.
+    const match = this.prestas.find(
+      (p) => !p.titre && !!p.nom && presta.nom.includes(p.nom) && !!p.renfort === !!presta.renfort,
+    );
     if (match) {
       match.qte = presta.qte;
       match.prix = presta.prix;
       match.reduc = presta.reduc ?? 0;
       match.nom = presta.nom;
       if (presta.fullKm) match.fullKm = true;
+      match.renfort = presta.renfort;
     } else {
       const extra: Presta = {
         qte: presta.qte,
@@ -238,34 +243,56 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       };
       if (presta.kilorly || presta.nom.includes('Frais de déplacement')) extra.kilorly = true;
       if (presta.fullKm) extra.fullKm = true;
+      if (presta.renfort) extra.renfort = true;
       this.prestas.push(extra);
     }
   }
 
-  /** Reprend les lignes du devis dans la facture et calcule l'acompte déjà versé. */
+  /**
+   * Reprend les lignes du devis dans la facture et calcule l'acompte déjà versé.
+   * Les unités d'une prestation réalisées par un renfort (d'après le planning)
+   * sont séparées sur une ligne distincte « part renfort » (ex. 6 invitées dont
+   * 2 confiées → ligne à moi ×4 + ligne renfort ×2). Le total est inchangé.
+   */
   private addDevisToFacture(data: Journee): void {
     const arrhes = this.prestas.find((p) => p.nom === 'Paiement Arrhes');
     if (arrhes) arrhes.qte = 0;
 
-    // On reprend TOUTES les lignes du devis, renforts compris : elles ne sont
-    // plus retirées automatiquement, juste signalées visuellement (« pas pour
-    // moi ») dans l'éditeur.
+    const renforts = this.renfortUnitsByName(data);
     for (const presta of data.devis?.prestas ?? []) {
-      this.mergePresta({ ...presta });
+      const nom = presta.nom ?? '';
+      const done = renforts.get(nom) ?? 0;
+      if (done > 0 && presta.qte !== '?' && !presta.kilorly && !nom.includes('renfort')) {
+        const totalQty = Number(presta.qte);
+        const provQty = Math.min(done, totalQty);
+        const mineQty = totalQty - provQty;
+        if (mineQty > 0) this.mergePresta({ ...presta, qte: mineQty });
+        if (provQty > 0) this.mergePresta({ ...presta, qte: provQty, renfort: true });
+      } else {
+        this.mergePresta({ ...presta });
+      }
     }
 
-    // On NE retire PAS les lignes déjà facturées : la facture porte le total
-    // complet du devis, et le déjà-versé est déduit via l'acompte. Le solde
-    // (total − acompte) reste ainsi cohérent avec le « Reste à payer » du
-    // récapitulatif.
+    // Le déjà-versé est déduit via l'acompte (la facture porte le total complet).
     let prior = 0;
     for (const facture of data.factures) prior += this.factureContribution(facture);
     this.values.acompte = prior;
   }
 
-  /** Vrai si la ligne est une prestation de renfort (signalée « pas pour moi »). */
+  /** Nombre d'unités, par nom de prestation, réalisées par un renfort (planning). */
+  private renfortUnitsByName(data: Journee): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const presta of data.planning?.prestas ?? []) {
+      if (presta.artisteIndex !== 0 && presta.nom) {
+        counts.set(presta.nom, (counts.get(presta.nom) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  /** Vrai si la ligne est une part prestataire (drapeau renfort ou intitulé). */
   protected isRenfort(presta: Presta): boolean {
-    return (presta.nom ?? '').includes('renfort');
+    return presta.renfort === true || (presta.nom ?? '').includes('renfort');
   }
 
   private factureContribution(facture: Facture): number {

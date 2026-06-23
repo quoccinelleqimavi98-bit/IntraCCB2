@@ -49,7 +49,7 @@ export class DocumentPdf {
   }
 
   private isProvider(presta: Presta): boolean {
-    return (presta.nom ?? '').includes('renfort');
+    return presta.renfort === true || (presta.nom ?? '').includes('renfort');
   }
 
   protected mineLines(): Presta[] {
@@ -72,11 +72,6 @@ export class DocumentPdf {
   /** Indice de la 1re ligne prestataire dans `orderedLines` (pour la séparation). */
   protected providerStart(): number {
     return this.mineLines().length;
-  }
-
-  /** Sous-total des lignes prestataire (= paiement prestataires de la facture). */
-  protected providerTotal(): number {
-    return this.pricing.total(this.providerLines());
   }
 
   protected lineTotal(presta: Presta): number {

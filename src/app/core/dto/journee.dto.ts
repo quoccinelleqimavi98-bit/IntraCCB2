@@ -25,6 +25,8 @@ export interface PrestaDto {
   maquillage?: boolean;
   coiffure?: boolean;
   titre?: boolean;
+  /** Facture : part réalisée par un prestataire/renfort. */
+  renfort?: boolean;
   /** Planning : index de l'artiste. */
   presta?: number | string;
   /** Planning : index de la ligne. */
