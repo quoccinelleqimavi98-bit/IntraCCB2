@@ -214,16 +214,19 @@
           </div>
           <div class="resume__totals">
             <div>
-              <span>{{ data.factures.length === 0 ? 'Arrhes' : 'Payé' }}</span>
-              <strong>{{ money(data.factures.length === 0 ? arrhes() : paid()) }}€</strong>
-            </div>
-            <div>
               <span>Total</span><strong>{{ money(total()) }}€</strong>
             </div>
             <div>
-              <span>Prestataires</span><strong>{{ money(providersPaid()) }}€</strong>
+              <span>Payé</span><strong>{{ money(paid()) }}€</strong>
             </div>
             <div>
+              <span>Reste à payer</span><strong>{{ money(resteAPayer()) }}€</strong>
+            </div>
+            <div class="resume__sep"></div>
+            <div class="resume__small">
+              <span>Prestataires</span><strong>{{ money(providersPaid()) }}€</strong>
+            </div>
+            <div class="resume__small">
               <span>Moi</span><strong>{{ money(mine()) }}€</strong>
             </div>
           </div>

@@ -190,16 +190,30 @@
 }
 
 .resume__totals {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2) var(--space-5);
+  display: flex;
+  flex-direction: column;
   margin-top: var(--space-4);
 
-  > div {
+  > div:not(.resume__sep) {
     @include flex-between;
     gap: var(--space-3);
     padding: 4px 0;
-    border-bottom: 1px solid var(--border);
+  }
+
+  // Séparation « trait noir » avant la part prestataires / moi.
+  .resume__sep {
+    border-top: 2px solid #000;
+    margin: 6px 0;
+  }
+
+  // Part prestataires / moi : en plus petit.
+  .resume__small {
+    span,
+    strong {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
   }
 
   span {
@@ -208,10 +222,6 @@
   }
   strong {
     color: var(--brand-strong);
-  }
-
-  @include mobile {
-    grid-template-columns: 1fr;
   }
 }
 

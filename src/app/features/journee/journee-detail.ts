@@ -165,6 +165,11 @@ export class JourneeDetail {
     return this.pricing.mine(this.data);
   }
 
+  /** Reste à payer pour le client = total du devis − déjà payé. */
+  protected resteAPayer(): number {
+    return this.total() - this.paid();
+  }
+
   protected factureSold(facture: Facture): number {
     return this.pricing.factureSold(facture);
   }

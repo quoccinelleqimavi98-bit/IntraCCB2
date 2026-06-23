@@ -248,18 +248,11 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     const arrhes = this.prestas.find((p) => p.nom === 'Paiement Arrhes');
     if (arrhes) arrhes.qte = 0;
 
-    // Unités réalisées par un renfort (planning) : exclues de la facture cliente.
-    const renforts = this.renfortUnitsByName(data);
+    // On reprend TOUTES les lignes du devis, renforts compris : elles ne sont
+    // plus retirées automatiquement, juste signalées visuellement (« pas pour
+    // moi ») dans l'éditeur.
     for (const presta of data.devis?.prestas ?? []) {
-      const nom = presta.nom ?? '';
-      if (nom.includes('renfort')) continue; // ligne de renfort : non facturée ici
-      let qte = presta.qte;
-      if (qte !== '?' && !presta.kilorly) {
-        const done = renforts.get(nom) ?? 0;
-        if (done > 0) qte = Math.max(0, Number(qte) - done);
-      }
-      if (qte !== '?' && Number(qte) <= 0) continue; // entièrement faite par un renfort
-      this.mergePresta({ ...presta, qte });
+      this.mergePresta({ ...presta });
     }
 
     let prior = 0;
@@ -276,15 +269,9 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     this.values.acompte = prior;
   }
 
-  /** Nombre d'unités, par nom de prestation, réalisées par un renfort (planning). */
-  private renfortUnitsByName(data: Journee): Map<string, number> {
-    const counts = new Map<string, number>();
-    for (const presta of data.planning?.prestas ?? []) {
-      if (presta.artisteIndex !== 0 && presta.nom) {
-        counts.set(presta.nom, (counts.get(presta.nom) ?? 0) + 1);
-      }
-    }
-    return counts;
+  /** Vrai si la ligne est une prestation de renfort (signalée « pas pour moi »). */
+  protected isRenfort(presta: Presta): boolean {
+    return (presta.nom ?? '').includes('renfort');
   }
 
   private factureContribution(facture: Facture): number {
@@ -298,10 +285,19 @@ export class DocumentEditor implements OnInit, AfterViewInit {
 
   protected addQte(presta: Presta): void {
     if (presta.qte !== '?') presta.qte = Number(presta.qte) + 1;
+    this.refreshSolde();
   }
 
   protected removeQte(presta: Presta): void {
     if (presta.qte !== '?' && Number(presta.qte) > 0) presta.qte = Number(presta.qte) - 1;
+    this.refreshSolde();
+  }
+
+  /** Recalcule le solde d'une facture après modification des prestations. */
+  protected refreshSolde(): void {
+    if (this.isDevis) return;
+    const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
+    this.values.solde = this.total() - acompte;
   }
 
   protected canDecrement(presta: Presta): boolean {
@@ -314,6 +310,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
 
   protected deleteAll(): void {
     for (const presta of this.prestas) presta.qte = 0;
+    this.refreshSolde();
   }
 
   protected addDevisPrestas(): void {

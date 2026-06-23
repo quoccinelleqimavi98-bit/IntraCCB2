@@ -117,6 +117,26 @@
   align-items: center;
 }
 
+// Ligne de renfort : conservée sur la facture mais signalée « pas pour moi »
+// (liseré + italique), au lieu d'être retirée automatiquement.
+.presta-row--renfort,
+.field--renfort {
+  box-shadow: inset 3px 0 0 var(--brand);
+  background: #ab83ba12;
+  border-radius: var(--radius-sm);
+  padding-left: var(--space-2);
+}
+
+.presta-row--renfort .presta-nom {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.field--renfort label {
+  font-style: italic;
+  color: var(--brand-strong);
+}
+
 .qte {
   display: flex;
   align-items: center;

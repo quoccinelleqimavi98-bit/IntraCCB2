@@ -86,20 +86,28 @@ export class PricingService {
     return sum;
   }
 
-  /** Part reversée aux prestataires/renforts sur une journée. */
+  /**
+   * Part reversée aux prestataires/renforts sur une journée :
+   *   frais de déplacement des renforts (lignes du devis)
+   * + si un planning est établi, les prestations qui ne sont PAS à moi dans le
+   *   planning (artiste ≠ 0).
+   */
   providersPaid(journee: Journee): number {
     let total = 0;
-    for (const facture of journee.factures) {
-      if (facture.paiementPrestas) total += facture.paiementPrestas;
+
+    for (const presta of journee.devis?.prestas ?? []) {
+      const nom = presta.nom ?? '';
+      if (nom.includes('renfort') && (presta.kilorly || nom.includes('éplacement'))) {
+        total += this.lineTotal(presta);
+      }
     }
-    if (total === 0 && journee.planning?.prestas) {
+
+    if (journee.planning?.prestas?.length) {
       for (const presta of journee.planning.prestas) {
         if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
       }
     }
-    for (const presta of journee.devis?.prestas ?? []) {
-      if (presta.nom?.includes('renfort')) total += this.lineTotal(presta);
-    }
+
     return Math.floor(total);
   }
 
