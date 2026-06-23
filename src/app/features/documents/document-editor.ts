@@ -255,17 +255,12 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       this.mergePresta({ ...presta });
     }
 
+    // On NE retire PAS les lignes déjà facturées : la facture porte le total
+    // complet du devis, et le déjà-versé est déduit via l'acompte. Le solde
+    // (total − acompte) reste ainsi cohérent avec le « Reste à payer » du
+    // récapitulatif.
     let prior = 0;
-    for (const facture of data.factures) {
-      prior += this.factureContribution(facture);
-      for (const presta of facture.prestas) {
-        const match = this.prestas.find(
-          (p) =>
-            p.nom === presta.nom && p.prix === presta.prix && Number(p.qte) === Number(presta.qte),
-        );
-        if (match) match.qte = 0;
-      }
-    }
+    for (const facture of data.factures) prior += this.factureContribution(facture);
     this.values.acompte = prior;
   }
 
