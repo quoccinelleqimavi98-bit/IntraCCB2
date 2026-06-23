@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { Facture, Journee, Presta } from '../models';
+import { Facture, Journee, Planning, Presta } from '../models';
 
 /**
  * Moteur de prix — source unique de toute la logique chiffrée (devis, factures,
@@ -87,51 +87,37 @@ export class PricingService {
   }
 
   /**
-   * Part reversée aux prestataires/renforts sur une journée :
-   *   frais de déplacement des renforts (lignes du devis)
-   * + si un planning est établi, les prestations qui ne sont PAS à moi dans le
-   *   planning (artiste ≠ 0).
+   * Calcule le paiement prestataires d'après le planning + les frais de
+   * déplacement des renforts (du devis). C'est la valeur figée à la sauvegarde
+   * d'un planning :
+   *   frais de déplacement renfort (devis)
+   * + prestations qui ne sont PAS à moi dans le planning (artiste ≠ 0).
    */
-  providersPaid(journee: Journee): number {
+  computeProviders(planning: Planning | undefined, devisPrestas: Presta[]): number {
     let total = 0;
-
-    for (const presta of journee.devis?.prestas ?? []) {
+    for (const presta of devisPrestas) {
       const nom = presta.nom ?? '';
       if (nom.includes('renfort') && (presta.kilorly || nom.includes('éplacement'))) {
         total += this.lineTotal(presta);
       }
     }
-
-    if (journee.planning?.prestas?.length) {
-      for (const presta of journee.planning.prestas) {
-        if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
-      }
+    for (const presta of planning?.prestas ?? []) {
+      if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
     }
-
     return Math.floor(total);
   }
 
-  /** Part revenant à Cloé (total hors renforts/prestataires). */
+  /**
+   * Part reversée aux prestataires/renforts sur une journée. Valeur FIGÉE à la
+   * sauvegarde du planning (`journee.prestataires`) ; à défaut, recalcul.
+   */
+  providersPaid(journee: Journee): number {
+    if (journee.prestataires != null) return Math.floor(Number(journee.prestataires));
+    return this.computeProviders(journee.planning, journee.devis?.prestas ?? []);
+  }
+
+  /** Part revenant à Cloé = total du devis − paiement prestataires. */
   mine(journee: Journee): number {
-    if (this.providersPaid(journee) === 0) return this.total(journee.devis?.prestas ?? []);
-    let total = 0;
-    for (const facture of journee.factures) {
-      if (facture.paiementPrestas) total += facture.paiementPrestas;
-    }
-    if (total === 0 && journee.planning?.prestas) {
-      for (const presta of journee.planning.prestas) {
-        if (presta.artisteIndex === 0) total += this.unitPrice(presta);
-      }
-    }
-    for (const presta of journee.devis?.prestas ?? []) {
-      if (
-        !presta.nom?.includes('renfort') &&
-        presta.nom?.includes('Frais de déplacement') &&
-        presta.qte !== '?'
-      ) {
-        total += this.lineTotal(presta);
-      }
-    }
-    return Math.floor(total);
+    return this.total(journee.devis?.prestas ?? []) - this.providersPaid(journee);
   }
 }

@@ -46,20 +46,6 @@ export class StatsService {
     return this.pricing.lineTotal(presta);
   }
 
-  /** Prix « à l'unité » (réduction + arrondi, frais au km inclus). */
-  private calcOne(presta: Presta): number {
-    if (presta.qte === '?') return 0;
-    let prix = presta.prix ?? 0;
-    if (presta.kilorly) {
-      const qte = Number(presta.qte);
-      const km = presta.prix ?? 0;
-      prix = presta.fullKm ? qte * 2 * km : qte <= 10 ? 0 : (qte - 10) * 2 * km;
-    }
-    if (presta.reduc) prix -= (prix * presta.reduc) / 100;
-    if (Number.isInteger(presta.prix ?? 0) || presta.kilorly) prix = Math.floor(prix);
-    return prix;
-  }
-
   /** Durée (min) des prestations du planning réalisées par moi (artiste 0). */
   private planningPrestasTime(prestas: Presta[] | undefined): number {
     let time = 0;
@@ -95,34 +81,15 @@ export class StatsService {
     return price;
   }
 
-  /** Somme des prestations du planning, côté moi (artiste 0) ou renforts. */
-  private planningPrestasPrice(prestas: Presta[] | undefined, notMe = false): number {
-    let price = 0;
-    for (const p of prestas ?? []) {
-      const artiste = (p as { artisteIndex?: number }).artisteIndex ?? 0;
-      if (notMe ? artiste !== 0 : artiste === 0) price += this.calcOne(p);
-    }
-    return price;
-  }
-
   // --- Part journalière (ex-CalcService) ------------------------------------
 
-  /** Ce que je gagne sur une journée (planning si présent, sinon devis). */
+  /**
+   * Ce que je gagne sur une journée = total du devis − paiement prestataires
+   * (figé à la sauvegarde du planning). Modèle homogène : on part toujours du
+   * devis, jamais du planning, et on retranche la part des prestataires.
+   */
   mineThisDay(journee: Journee): number {
-    let total = 0;
-    // On se base sur le devis tant qu'AUCUNE prestation n'a été posée au
-    // planning. Le mapper matérialise toujours `planning.prestas` (tableau vide
-    // si rien), donc on teste la longueur — sinon un planning vide masquerait le
-    // devis et la journée ressortirait à 0 € (ex. un « autre » comme un shooting).
-    if (journee.planning?.prestas?.length) {
-      total += this.planningPrestasPrice(journee.planning.prestas, false);
-      for (const p of journee.devis?.prestas ?? []) {
-        if (p.kilorly && !(p.nom ?? '').includes('renfort')) total += this.calc(p);
-      }
-    } else if (journee.devis?.prestas) {
-      total += this.prestasPrice(journee.devis.prestas);
-    }
-    return Math.floor(total);
+    return this.pricing.mine(journee);
   }
 
   /** Montant déjà encaissé sur une journée (factures, hors part prestataires). */
@@ -231,22 +198,13 @@ export class StatsService {
     return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
   }
 
-  /** Total reversé aux renforts sur la période. */
+  /** Total reversé aux prestataires/renforts sur la période (= part figée). */
   helpers(journees: Journee[], year: number, month: number | null): number {
     const data = journees.filter(
       (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
     );
     let total = 0;
-    for (const j of data) {
-      let tot = 0;
-      if (j.prestataires) tot += Number(j.prestataires);
-      else for (const f of j.factures) if (f.paiementPrestas) tot += Number(f.paiementPrestas);
-      if (tot === 0 && j.planning?.prestas?.length) {
-        tot += this.planningPrestasPrice(j.planning.prestas, true);
-      }
-      if (j.devis?.prestas) tot += this.prestasPrice(j.devis.prestas, false, true);
-      total += tot;
-    }
+    for (const j of data) total += this.pricing.providersPaid(j);
     return Math.trunc(total);
   }
 

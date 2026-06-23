@@ -315,6 +315,10 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     };
     if (!j.mariage.ceremonie) j.mariage.ceremonie = this.state.ceremonie;
     j.planning = planning;
+    // Fige le paiement prestataires (prestations du planning non à moi + frais
+    // de déplacement renfort). Source unique pour toutes les autres parties :
+    // ensuite, la part de Cloé se calcule sur le devis − ce montant.
+    j.prestataires = this.pricing.computeProviders(planning, j.devis?.prestas ?? []);
     this.saved.emit();
   }
 
