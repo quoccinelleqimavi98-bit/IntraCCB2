@@ -1,0 +1,97 @@
+From b948c25fd0f3bb4093a290035def85b1f4691514 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 23 Jun 2026 08:04:07 +0000
+Subject: [PATCH 1/2] =?UTF-8?q?fix(pdf):=20mobile=20=E2=80=94=20neutralise?=
+ =?UTF-8?q?r=20le=20transform:=20scale=20de=20l'aper=C3=A7u=20pendant=20la?=
+ =?UTF-8?q?=20capture?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Vraie cause du PDF déformé sur mobile (texte qui se chevauche, « 10h0010h30 ») :
+l'aperçu enveloppe le document dans `.preview-zoom { transform: scale(...) }`.
+Sur PC l'échelle vaut 1 (le document tient), sur mobile elle est < 1 pour tenir
+à l'écran. Or html2canvas calcule mal les positions sous un parent mis à
+l'échelle (positions mises à l'échelle mais texte rendu à taille pleine →
+chevauchement). D'où « ça marche sur PC, pas sur mobile ».
+
+On met donc à `none` les `transform` de l'élément et de ses ancêtres le temps de
+la capture, puis on les restaure. Reproduit et vérifié : sous un ancêtre
+scale(0,6), le rendu chevauchait ; neutralisé, le tableau est parfaitement
+aligné.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/core/services/pdf.service.ts | 48 +++++++++++++++++++++-------
+ 1 file changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/app/core/services/pdf.service.ts b/src/app/core/services/pdf.service.ts
+index c86ef86..35bab93 100644
+--- a/src/app/core/services/pdf.service.ts
++++ b/src/app/core/services/pdf.service.ts
+@@ -30,17 +30,24 @@ export class PdfService {
+     const width = element.scrollWidth || element.offsetWidth || 1;
+     const height = element.scrollHeight || element.offsetHeight || 1;
+ 
+-    const canvas = await html2canvas(element, {
+-      scale: this.safeScale(width, height),
+-      useCORS: true,
+-      backgroundColor: '#ffffff',
+-      // Rend dans une fenêtre de la largeur EXACTE du document (et non celle de
+-      // l'écran) : sur mobile, l'iframe interne d'html2canvas n'hérite pas du
+-      // <meta viewport>, et sans ça le texte du planning était « gonflé » et
+-      // débordait des colonnes.
+-      windowWidth: width,
+-      windowHeight: height,
+-    });
++    // Neutralise temporairement les `transform: scale(...)` des ancêtres
++    // (l'aperçu zoomé l'applique sur mobile, où la place manque). html2canvas
++    // calcule mal les positions sous un parent mis à l'échelle : le texte se
++    // chevauchait (« 10h0010h30 »). Sur PC l'échelle vaut 1, d'où « ça marche
++    // sur PC ».
++    const restoreTransforms = this.neutralizeAncestorTransforms(element);
++    let canvas: HTMLCanvasElement;
++    try {
++      canvas = await html2canvas(element, {
++        scale: this.safeScale(width, height),
++        useCORS: true,
++        backgroundColor: '#ffffff',
++        windowWidth: width,
++        windowHeight: height,
++      });
++    } finally {
++      restoreTransforms();
++    }
+     const imgData = canvas.toDataURL('image/jpeg');
+     const pdf = new jsPDF('p', 'mm', 'a4');
+ 
+@@ -64,6 +71,25 @@ export class PdfService {
+     pdf.save(`${filename}.pdf`);
+   }
+ 
++  /**
++   * Met à `none` les `transform` de l'élément et de ses ancêtres le temps de la
++   * capture, et renvoie une fonction pour les restaurer.
++   */
++  private neutralizeAncestorTransforms(element: HTMLElement): () => void {
++    const saved: Array<{ el: HTMLElement; transform: string }> = [];
++    let node: HTMLElement | null = element;
++    while (node) {
++      if (getComputedStyle(node).transform !== 'none') {
++        saved.push({ el: node, transform: node.style.transform });
++        node.style.transform = 'none';
++      }
++      node = node.parentElement;
++    }
++    return () => {
++      for (const { el, transform } of saved) el.style.transform = transform;
++    };
++  }
++
+   /**
+    * Force le chargement des polices web puis attend qu'elles soient prêtes.
+    * Sans ça, sur mobile, html2canvas capture une police de repli et le PDF ne
+-- 
+2.43.0
+
