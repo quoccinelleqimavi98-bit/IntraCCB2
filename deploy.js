@@ -51,6 +51,18 @@ async function removeAll(client, dir) {
   }
 }
 
+function gitCommitPush() {
+    try {
+        console.log("Git commit/push…");
+        execSync("git add .", { stdio: "inherit" });
+        execSync('git commit -m "deploy admin"', { stdio: "inherit" });
+        execSync("git push", { stdio: "inherit" });
+        console.log("Git commit/push terminé.");
+    } catch (err) {
+        console.log("Git commit/push ignoré (peut-être pas de changements).");
+    }
+}
+
 /** Envoie récursivement le contenu d'un dossier local vers le distant. */
 async function uploadDir(client, localDir, remoteDir) {
   for (const file of fs.readdirSync(localDir)) {
@@ -73,6 +85,8 @@ async function deploy() {
   if (!fs.existsSync(BUILD_DIR)) {
     throw new Error(`Build introuvable : ${BUILD_DIR}`);
   }
+
+  gitCommitPush();
 
   const client = new ftp.Client();
   client.ftp.verbose = true;
