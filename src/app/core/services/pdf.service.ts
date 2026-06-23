@@ -27,10 +27,19 @@ export class PdfService {
   async generate(element: HTMLElement, filename: string): Promise<void> {
     await this.ensureFontsReady();
 
+    const width = element.scrollWidth || element.offsetWidth || 1;
+    const height = element.scrollHeight || element.offsetHeight || 1;
+
     const canvas = await html2canvas(element, {
-      scale: this.safeScale(element),
+      scale: this.safeScale(width, height),
       useCORS: true,
       backgroundColor: '#ffffff',
+      // Rend dans une fenêtre de la largeur EXACTE du document (et non celle de
+      // l'écran) : sur mobile, l'iframe interne d'html2canvas n'hérite pas du
+      // <meta viewport>, et sans ça le texte du planning était « gonflé » et
+      // débordait des colonnes.
+      windowWidth: width,
+      windowHeight: height,
     });
     const imgData = canvas.toDataURL('image/jpeg');
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -77,9 +86,7 @@ export class PdfService {
    * Un document A4 d'une page reste à l'échelle 4 (comme sur PC) ; les documents
    * plus longs voient leur échelle réduite juste ce qu'il faut.
    */
-  private safeScale(element: HTMLElement): number {
-    const width = element.scrollWidth || element.offsetWidth || 1;
-    const height = element.scrollHeight || element.offsetHeight || 1;
+  private safeScale(width: number, height: number): number {
     const MAX_SIDE = 8192;
     const MAX_AREA = 15_000_000;
     const scale = Math.min(

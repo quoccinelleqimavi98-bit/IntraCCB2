@@ -16,6 +16,15 @@ body {
   height: 100%;
 }
 
+// Désactive l'« auto-gonflage » du texte des navigateurs mobiles (font boosting).
+// Indispensable pour l'export PDF : html2canvas rend dans une iframe qui ne
+// reprend pas le <meta viewport>, ce qui réactivait le gonflage et faisait
+// déborder le texte des cellules du planning (collisions « 10h0010h30 »).
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   width: 100%;
   min-height: 100%;
