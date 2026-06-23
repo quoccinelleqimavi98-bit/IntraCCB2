@@ -145,6 +145,23 @@ export class JourneeDetail {
     return this.pricing.lineLabel(presta);
   }
 
+  /** Vrai si la ligne est une part prestataire (drapeau ou intitulé). */
+  protected isProvider(presta: Presta): boolean {
+    return presta.renfort === true || (presta.nom ?? '').includes('renfort');
+  }
+
+  /** Lignes du récap : mes prestations d'abord, puis les parts prestataires. */
+  protected recapLines(): Presta[] {
+    const split = this.pricing.splitProviders(this.devisPrestas);
+    return [...split.filter((p) => !this.isProvider(p)), ...split.filter((p) => this.isProvider(p))];
+  }
+
+  /** Indice de la 1re ligne prestataire dans `recapLines` (−1 si aucune). */
+  protected recapProviderStart(): number {
+    const count = this.recapLines().filter((p) => this.isProvider(p)).length;
+    return count > 0 ? this.recapLines().length - count : -1;
+  }
+
   protected total(): number {
     return this.pricing.total(this.devisPrestas);
   }

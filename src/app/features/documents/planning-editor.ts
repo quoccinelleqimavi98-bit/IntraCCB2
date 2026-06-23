@@ -319,7 +319,27 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     // de déplacement renfort). Source unique pour toutes les autres parties :
     // ensuite, la part de Cloé se calcule sur le devis − ce montant.
     j.prestataires = this.pricing.computeProviders(planning, j.devis?.prestas ?? []);
+    // Fige, sur chaque ligne du devis, le nombre d'unités confiées à un
+    // prestataire (d'après le planning) → sert à scinder l'affichage (récap,
+    // facture). Recalcul idempotent à chaque sauvegarde du planning.
+    this.storeRenfortQte(j);
     this.saved.emit();
+  }
+
+  /** Annote chaque ligne du devis avec le nombre d'unités confiées au planning. */
+  private storeRenfortQte(j: Journee): void {
+    const counts = new Map<string, number>();
+    for (const p of this.state.prestas) {
+      if (p.artisteIndex !== 0 && p.nom) counts.set(p.nom, (counts.get(p.nom) ?? 0) + 1);
+    }
+    for (const presta of j.devis?.prestas ?? []) {
+      const nom = presta.nom ?? '';
+      const done = counts.get(nom) ?? 0;
+      presta.renfortQte =
+        done > 0 && presta.qte !== '?' && !presta.kilorly && !nom.includes('renfort')
+          ? Math.min(done, Number(presta.qte))
+          : undefined;
+    }
   }
 
   protected async generatePdf(): Promise<void> {

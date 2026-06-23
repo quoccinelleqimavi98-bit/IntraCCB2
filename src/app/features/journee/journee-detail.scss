@@ -185,6 +185,21 @@
   border-bottom: 1px solid var(--surface-2);
 }
 
+.resume__row--renfort {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+// Séparation « À régler au prestataire » dans le récap.
+.resume__presta-sep {
+  border-top: 1px dashed var(--border-strong);
+  margin-top: 6px;
+  padding-top: 4px;
+  font-size: var(--fs-xs);
+  font-style: italic;
+  color: var(--brand-strong);
+}
+
 .resume__name {
   @include truncate;
 }

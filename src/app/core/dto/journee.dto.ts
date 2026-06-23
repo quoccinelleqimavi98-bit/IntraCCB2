@@ -27,6 +27,8 @@ export interface PrestaDto {
   titre?: boolean;
   /** Facture : part réalisée par un prestataire/renfort. */
   renfort?: boolean;
+  /** Nombre d'unités confiées à un prestataire (figé à la sauvegarde du planning). */
+  renfortqte?: number;
   /** Planning : index de l'artiste. */
   presta?: number | string;
   /** Planning : index de la ligne. */

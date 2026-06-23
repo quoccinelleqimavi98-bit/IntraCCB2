@@ -75,6 +75,7 @@ function prestaToDomain(dto: PrestaDto): Presta {
     coiffure: dto.coiffure,
     titre: dto.titre,
     renfort: toBool(dto.renfort),
+    renfortQte: dto.renfortqte,
     qte: toQuantity(dto.qte),
   };
 }
@@ -97,6 +98,7 @@ function prestaToDto(p: Presta): PrestaDto {
     coiffure: p.coiffure,
     titre: p.titre,
     renfort: p.renfort,
+    renfortqte: p.renfortQte,
     qte: p.qte,
   };
 }

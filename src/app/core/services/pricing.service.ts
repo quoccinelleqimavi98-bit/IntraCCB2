@@ -120,4 +120,25 @@ export class PricingService {
   mine(journee: Journee): number {
     return this.total(journee.devis?.prestas ?? []) - this.providersPaid(journee);
   }
+
+  /**
+   * Sépare les lignes dont une partie est confiée à un prestataire (`renfortQte`,
+   * figé à la sauvegarde du planning) en deux lignes : ma part et la part
+   * prestataire (drapeau `renfort`). Le total est inchangé.
+   */
+  splitProviders(prestas: Presta[]): Presta[] {
+    const out: Presta[] = [];
+    for (const p of prestas) {
+      const done = p.renfortQte ?? 0;
+      if (done > 0 && p.qte !== '?' && !p.kilorly) {
+        const prov = Math.min(done, Number(p.qte));
+        const mine = Number(p.qte) - prov;
+        if (mine > 0) out.push({ ...p, qte: mine, renfort: undefined, renfortQte: undefined });
+        if (prov > 0) out.push({ ...p, qte: prov, renfort: true, renfortQte: undefined });
+      } else {
+        out.push({ ...p });
+      }
+    }
+    return out;
+  }
 }

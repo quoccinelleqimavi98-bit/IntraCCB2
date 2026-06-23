@@ -48,4 +48,6 @@ export interface Presta extends CatalogItem {
   qte: Quantity;
   /** Part réalisée par un prestataire/renfort (facture : ligne affichée à part). */
   renfort?: boolean;
+  /** Nombre d'unités de cette ligne confiées à un prestataire (figé au planning). */
+  renfortQte?: number;
 }
