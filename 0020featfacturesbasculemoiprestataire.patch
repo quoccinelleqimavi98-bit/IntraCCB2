@@ -1,0 +1,100 @@
+From 28166edace9e0ca8c2ad80963a0757b7f0979ca7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 23 Jun 2026 13:05:07 +0000
+Subject: [PATCH] =?UTF-8?q?feat(factures):=20bascule=20Moi=20/=20Prestatai?=
+ =?UTF-8?q?re=20par=20ligne=20dans=20l'=C3=A9diteur?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Sur chaque ligne de facture, un bouton « Moi / Presta » permet de changer
+directement l'attribution prestataire (en plus de la répartition figée au
+planning). Au clic, la ligne bascule de groupe et tout se recalcule :
+classement sous la séparation « À régler au prestataire » (éditeur + PDF),
+paiement prestataires (= lignes renfort) et solde (= total − déjà versé −
+prestataires).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ .../features/documents/document-editor.html   | 15 +++++++++++++++
+ .../features/documents/document-editor.scss   | 19 +++++++++++++++++++
+ src/app/features/documents/document-editor.ts |  6 ++++++
+ 3 files changed, 40 insertions(+)
+
+diff --git a/src/app/features/documents/document-editor.html b/src/app/features/documents/document-editor.html
+index f192320..97559ca 100644
+--- a/src/app/features/documents/document-editor.html
++++ b/src/app/features/documents/document-editor.html
+@@ -90,6 +90,21 @@
+                   placeholder="%"
+                 />
+                 <span class="presta-total">{{ lineLabel(presta) }}</span>
++                @if (!isDevis) {
++                  <button
++                    type="button"
++                    class="presta-renfort-toggle"
++                    [class.active]="isRenfort(presta)"
++                    (click)="toggleRenfort(presta)"
++                    [title]="
++                      isRenfort(presta)
++                        ? 'Part prestataire — cliquer pour me l’attribuer'
++                        : 'Ma part — cliquer pour l’attribuer au prestataire'
++                    "
++                  >
++                    {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
++                  </button>
++                }
+               </div>
+             }
+           }
+diff --git a/src/app/features/documents/document-editor.scss b/src/app/features/documents/document-editor.scss
+index f0c4775..41eae56 100644
+--- a/src/app/features/documents/document-editor.scss
++++ b/src/app/features/documents/document-editor.scss
+@@ -137,6 +137,25 @@
+   color: var(--brand-strong);
+ }
+ 
++// Bascule « Moi / Presta » sur une ligne de facture.
++.presta-renfort-toggle {
++  border: 1px solid var(--border-strong);
++  background: var(--surface);
++  color: var(--text-muted);
++  border-radius: var(--radius-sm);
++  font-size: var(--fs-xs);
++  font-weight: 600;
++  padding: 2px 6px;
++  cursor: pointer;
++  white-space: nowrap;
++
++  &.active {
++    background: #ab83ba;
++    border-color: #ab83ba;
++    color: #fff;
++  }
++}
++
+ .qte {
+   display: flex;
+   align-items: center;
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index f1f1ffb..64139d5 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -273,6 +273,12 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+     return presta.renfort === true || (presta.nom ?? '').includes('renfort');
+   }
+ 
++  /** Bascule une ligne entre « ma part » et « part prestataire » et recalcule. */
++  protected toggleRenfort(presta: Presta): void {
++    presta.renfort = !this.isRenfort(presta);
++    this.refreshSolde();
++  }
++
+   private factureContribution(facture: Facture): number {
+     if (facture.solde) return this.pricing.factureSold(facture);
+     let sum = 0;
+-- 
+2.43.0
+
