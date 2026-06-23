@@ -99,6 +99,15 @@
     display: flex;
     margin: auto;
   }
+  // Séparation « à régler au prestataire » sur les factures.
+  .provider-sep {
+    border-top: 1px dashed #999;
+    margin-top: 6px;
+    padding-top: 4px;
+    font-size: 12px;
+    font-style: italic;
+    color: #87528e;
+  }
   .margtop {
     margin-top: 25px;
   }

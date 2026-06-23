@@ -43,6 +43,42 @@ export class DocumentPdf {
     return this.prestas().filter((p) => p.qte === '?' || Number(p.qte) > 0);
   }
 
+  /** Facture (par opposition au devis). */
+  protected isFacture(): boolean {
+    return this.mode() !== DocumentMode.Devis;
+  }
+
+  private isProvider(presta: Presta): boolean {
+    return (presta.nom ?? '').includes('renfort');
+  }
+
+  protected mineLines(): Presta[] {
+    return this.visiblePrestas().filter((p) => !this.isProvider(p));
+  }
+
+  protected providerLines(): Presta[] {
+    return this.visiblePrestas().filter((p) => this.isProvider(p));
+  }
+
+  /**
+   * Lignes affichées : sur une facture, mes lignes d'abord, puis celles des
+   * prestataires (réglées séparément). Ailleurs, ordre d'origine.
+   */
+  protected orderedLines(): Presta[] {
+    if (!this.isFacture() || this.providerLines().length === 0) return this.visiblePrestas();
+    return [...this.mineLines(), ...this.providerLines()];
+  }
+
+  /** Indice de la 1re ligne prestataire dans `orderedLines` (pour la séparation). */
+  protected providerStart(): number {
+    return this.mineLines().length;
+  }
+
+  /** Sous-total des lignes prestataire (= paiement prestataires de la facture). */
+  protected providerTotal(): number {
+    return this.pricing.total(this.providerLines());
+  }
+
   protected lineTotal(presta: Presta): number {
     return this.pricing.lineTotal(presta);
   }

@@ -215,9 +215,8 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       });
     } else {
       this.addDevisToFacture(data);
-      this.values.paiementPrestas = 0;
-      this.values.solde = this.total() - Number(this.values.acompte || 0);
       this.values.realsold = 0;
+      this.refreshSolde();
     }
   }
 
@@ -288,11 +287,31 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     this.refreshSolde();
   }
 
-  /** Recalcule le solde d'une facture après modification des prestations. */
+  /** Somme des lignes prestataire (renfort) de la facture. */
+  private providersTotal(): number {
+    let sum = 0;
+    for (const p of this.prestas) if (this.isRenfort(p)) sum += this.pricing.lineTotal(p);
+    return sum;
+  }
+
+  /**
+   * Recalcule le paiement prestataires (= lignes renfort de la facture) et le
+   * solde = total − déjà versé − paiement prestataires (ce que le client me
+   * doit À MOI). Appelé à chaque changement de prestation.
+   */
   protected refreshSolde(): void {
     if (this.isDevis) return;
     const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-    this.values.solde = this.total() - acompte;
+    const providers = this.providersTotal();
+    this.values.paiementPrestas = providers;
+    this.values.solde = this.total() - acompte - providers;
+  }
+
+  /** Met à jour le solde après saisie manuelle du paiement prestataires. */
+  protected onPaiementPrestasChange(): void {
+    if (this.isDevis) return;
+    const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
+    this.values.solde = this.total() - acompte - Number(this.values.paiementPrestas || 0);
   }
 
   protected canDecrement(presta: Presta): boolean {
@@ -351,7 +370,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       if (data.etape === Etape.Devis) data.etape = Etape.Arrhes;
     } else {
       const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-      let solde = this.total() - acompte;
+      let solde = this.total() - acompte - this.providersTotal();
       if (this.values.solde !== '') solde = Number(this.values.solde);
 
       const facture: Facture = {
