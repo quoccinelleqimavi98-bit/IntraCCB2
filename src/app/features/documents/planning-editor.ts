@@ -20,6 +20,7 @@ import {
   Planning,
   PlanningPresta,
   PlanningSlot,
+  Presta,
   SlotType,
 } from '../../core/models';
 import { DialogService } from '../../core/services/dialog.service';
@@ -328,17 +329,22 @@ export class PlanningEditor implements OnInit, AfterViewInit {
 
   /** Annote chaque ligne du devis avec le nombre d'unités confiées au planning. */
   private storeRenfortQte(j: Journee): void {
-    const counts = new Map<string, number>();
-    for (const p of this.state.prestas) {
-      if (p.artisteIndex !== 0 && p.nom) counts.set(p.nom, (counts.get(p.nom) ?? 0) + 1);
+    const lines = (j.devis?.prestas ?? []).filter(
+      (d) => d.qte !== '?' && !d.kilorly && !(d.nom ?? '').includes('renfort'),
+    );
+    const counts = new Map<Presta, number>();
+    // Chaque prestation du planning confiée à un renfort (artiste ≠ 0) est
+    // rattachée à sa ligne de devis : d'abord par intitulé, sinon par prix
+    // (robuste si le devis a été renommé après la création du planning).
+    for (const pp of this.state.prestas) {
+      if (pp.artisteIndex === 0) continue;
+      const byName = pp.nom ? lines.find((d) => d.nom === pp.nom) : undefined;
+      const line = byName ?? lines.find((d) => (d.prix ?? 0) === (pp.prix ?? 0));
+      if (line) counts.set(line, (counts.get(line) ?? 0) + 1);
     }
     for (const presta of j.devis?.prestas ?? []) {
-      const nom = presta.nom ?? '';
-      const done = counts.get(nom) ?? 0;
-      presta.renfortQte =
-        done > 0 && presta.qte !== '?' && !presta.kilorly && !nom.includes('renfort')
-          ? Math.min(done, Number(presta.qte))
-          : undefined;
+      const done = counts.get(presta) ?? 0;
+      presta.renfortQte = done > 0 ? Math.min(done, Number(presta.qte)) : undefined;
     }
   }
 
