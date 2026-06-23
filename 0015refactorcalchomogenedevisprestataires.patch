@@ -1,0 +1,229 @@
+From b323ce4744a608eab45c93974f0ff039aec327a1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 23 Jun 2026 08:19:46 +0000
+Subject: [PATCH] =?UTF-8?q?refactor(calc):=20logique=20homog=C3=A8ne=20?=
+ =?UTF-8?q?=E2=80=94=20part=20de=20Clo=C3=A9=20=3D=20devis=20=E2=88=92=20p?=
+ =?UTF-8?q?aiement=20prestataires?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Modèle unique, cohérent partout (fiche, factures, bilan) :
+
+- À la sauvegarde d'un planning, on FIGE `journee.prestataires` = prestations du
+  planning qui ne sont pas à moi (artiste ≠ 0) + frais de déplacement renfort du
+  devis. C'est la source unique du paiement prestataires.
+- `pricing.providersPaid` = cette valeur figée (sinon recalcul de secours).
+- `pricing.mine` = total du devis − providersPaid (plus de logique alambiquée).
+- `stats.mineThisDay` = `pricing.mine` : on se base TOUJOURS sur le devis, jamais
+  sur le planning. Le « à encaisser » du bilan reste donc ma part − déjà payé
+  (renforts exclus, comme voulu).
+- `stats.helpers` (paiement renforts du bilan) = Σ providersPaid.
+
+Vérifié : sans renfort, devis 707 / payé 157 → Moi 707, reste 550 (cohérent avec
+le récap). Avec renfort figé 200 sur devis 1000 → Moi 800.
+
+Note : les indicateurs du bilan changent volontairement par rapport à l'ancien
+site (modèle homogène devis − prestataires demandé), ils ne lui sont plus calés.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/core/services/pricing.service.ts      | 56 +++++++-----------
+ src/app/core/services/stats.service.ts        | 58 +++----------------
+ src/app/features/documents/planning-editor.ts |  4 ++
+ 3 files changed, 33 insertions(+), 85 deletions(-)
+
+diff --git a/src/app/core/services/pricing.service.ts b/src/app/core/services/pricing.service.ts
+index 5860beb..fa4b54d 100644
+--- a/src/app/core/services/pricing.service.ts
++++ b/src/app/core/services/pricing.service.ts
+@@ -1,6 +1,6 @@
+ import { Injectable } from '@angular/core';
+ 
+-import { Facture, Journee, Presta } from '../models';
++import { Facture, Journee, Planning, Presta } from '../models';
+ 
+ /**
+  * Moteur de prix — source unique de toute la logique chiffrée (devis, factures,
+@@ -87,51 +87,37 @@ export class PricingService {
+   }
+ 
+   /**
+-   * Part reversée aux prestataires/renforts sur une journée :
+-   *   frais de déplacement des renforts (lignes du devis)
+-   * + si un planning est établi, les prestations qui ne sont PAS à moi dans le
+-   *   planning (artiste ≠ 0).
++   * Calcule le paiement prestataires d'après le planning + les frais de
++   * déplacement des renforts (du devis). C'est la valeur figée à la sauvegarde
++   * d'un planning :
++   *   frais de déplacement renfort (devis)
++   * + prestations qui ne sont PAS à moi dans le planning (artiste ≠ 0).
+    */
+-  providersPaid(journee: Journee): number {
++  computeProviders(planning: Planning | undefined, devisPrestas: Presta[]): number {
+     let total = 0;
+-
+-    for (const presta of journee.devis?.prestas ?? []) {
++    for (const presta of devisPrestas) {
+       const nom = presta.nom ?? '';
+       if (nom.includes('renfort') && (presta.kilorly || nom.includes('éplacement'))) {
+         total += this.lineTotal(presta);
+       }
+     }
+-
+-    if (journee.planning?.prestas?.length) {
+-      for (const presta of journee.planning.prestas) {
+-        if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
+-      }
++    for (const presta of planning?.prestas ?? []) {
++      if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
+     }
+-
+     return Math.floor(total);
+   }
+ 
+-  /** Part revenant à Cloé (total hors renforts/prestataires). */
++  /**
++   * Part reversée aux prestataires/renforts sur une journée. Valeur FIGÉE à la
++   * sauvegarde du planning (`journee.prestataires`) ; à défaut, recalcul.
++   */
++  providersPaid(journee: Journee): number {
++    if (journee.prestataires != null) return Math.floor(Number(journee.prestataires));
++    return this.computeProviders(journee.planning, journee.devis?.prestas ?? []);
++  }
++
++  /** Part revenant à Cloé = total du devis − paiement prestataires. */
+   mine(journee: Journee): number {
+-    if (this.providersPaid(journee) === 0) return this.total(journee.devis?.prestas ?? []);
+-    let total = 0;
+-    for (const facture of journee.factures) {
+-      if (facture.paiementPrestas) total += facture.paiementPrestas;
+-    }
+-    if (total === 0 && journee.planning?.prestas) {
+-      for (const presta of journee.planning.prestas) {
+-        if (presta.artisteIndex === 0) total += this.unitPrice(presta);
+-      }
+-    }
+-    for (const presta of journee.devis?.prestas ?? []) {
+-      if (
+-        !presta.nom?.includes('renfort') &&
+-        presta.nom?.includes('Frais de déplacement') &&
+-        presta.qte !== '?'
+-      ) {
+-        total += this.lineTotal(presta);
+-      }
+-    }
+-    return Math.floor(total);
++    return this.total(journee.devis?.prestas ?? []) - this.providersPaid(journee);
+   }
+ }
+diff --git a/src/app/core/services/stats.service.ts b/src/app/core/services/stats.service.ts
+index 824e462..e13903e 100644
+--- a/src/app/core/services/stats.service.ts
++++ b/src/app/core/services/stats.service.ts
+@@ -46,20 +46,6 @@ export class StatsService {
+     return this.pricing.lineTotal(presta);
+   }
+ 
+-  /** Prix « à l'unité » (réduction + arrondi, frais au km inclus). */
+-  private calcOne(presta: Presta): number {
+-    if (presta.qte === '?') return 0;
+-    let prix = presta.prix ?? 0;
+-    if (presta.kilorly) {
+-      const qte = Number(presta.qte);
+-      const km = presta.prix ?? 0;
+-      prix = presta.fullKm ? qte * 2 * km : qte <= 10 ? 0 : (qte - 10) * 2 * km;
+-    }
+-    if (presta.reduc) prix -= (prix * presta.reduc) / 100;
+-    if (Number.isInteger(presta.prix ?? 0) || presta.kilorly) prix = Math.floor(prix);
+-    return prix;
+-  }
+-
+   /** Durée (min) des prestations du planning réalisées par moi (artiste 0). */
+   private planningPrestasTime(prestas: Presta[] | undefined): number {
+     let time = 0;
+@@ -95,34 +81,15 @@ export class StatsService {
+     return price;
+   }
+ 
+-  /** Somme des prestations du planning, côté moi (artiste 0) ou renforts. */
+-  private planningPrestasPrice(prestas: Presta[] | undefined, notMe = false): number {
+-    let price = 0;
+-    for (const p of prestas ?? []) {
+-      const artiste = (p as { artisteIndex?: number }).artisteIndex ?? 0;
+-      if (notMe ? artiste !== 0 : artiste === 0) price += this.calcOne(p);
+-    }
+-    return price;
+-  }
+-
+   // --- Part journalière (ex-CalcService) ------------------------------------
+ 
+-  /** Ce que je gagne sur une journée (planning si présent, sinon devis). */
++  /**
++   * Ce que je gagne sur une journée = total du devis − paiement prestataires
++   * (figé à la sauvegarde du planning). Modèle homogène : on part toujours du
++   * devis, jamais du planning, et on retranche la part des prestataires.
++   */
+   mineThisDay(journee: Journee): number {
+-    let total = 0;
+-    // On se base sur le devis tant qu'AUCUNE prestation n'a été posée au
+-    // planning. Le mapper matérialise toujours `planning.prestas` (tableau vide
+-    // si rien), donc on teste la longueur — sinon un planning vide masquerait le
+-    // devis et la journée ressortirait à 0 € (ex. un « autre » comme un shooting).
+-    if (journee.planning?.prestas?.length) {
+-      total += this.planningPrestasPrice(journee.planning.prestas, false);
+-      for (const p of journee.devis?.prestas ?? []) {
+-        if (p.kilorly && !(p.nom ?? '').includes('renfort')) total += this.calc(p);
+-      }
+-    } else if (journee.devis?.prestas) {
+-      total += this.prestasPrice(journee.devis.prestas);
+-    }
+-    return Math.floor(total);
++    return this.pricing.mine(journee);
+   }
+ 
+   /** Montant déjà encaissé sur une journée (factures, hors part prestataires). */
+@@ -231,22 +198,13 @@ export class StatsService {
+     return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
+   }
+ 
+-  /** Total reversé aux renforts sur la période. */
++  /** Total reversé aux prestataires/renforts sur la période (= part figée). */
+   helpers(journees: Journee[], year: number, month: number | null): number {
+     const data = journees.filter(
+       (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
+     );
+     let total = 0;
+-    for (const j of data) {
+-      let tot = 0;
+-      if (j.prestataires) tot += Number(j.prestataires);
+-      else for (const f of j.factures) if (f.paiementPrestas) tot += Number(f.paiementPrestas);
+-      if (tot === 0 && j.planning?.prestas?.length) {
+-        tot += this.planningPrestasPrice(j.planning.prestas, true);
+-      }
+-      if (j.devis?.prestas) tot += this.prestasPrice(j.devis.prestas, false, true);
+-      total += tot;
+-    }
++    for (const j of data) total += this.pricing.providersPaid(j);
+     return Math.trunc(total);
+   }
+ 
+diff --git a/src/app/features/documents/planning-editor.ts b/src/app/features/documents/planning-editor.ts
+index bd775a0..d1c3372 100644
+--- a/src/app/features/documents/planning-editor.ts
++++ b/src/app/features/documents/planning-editor.ts
+@@ -315,6 +315,10 @@ export class PlanningEditor implements OnInit, AfterViewInit {
+     };
+     if (!j.mariage.ceremonie) j.mariage.ceremonie = this.state.ceremonie;
+     j.planning = planning;
++    // Fige le paiement prestataires (prestations du planning non à moi + frais
++    // de déplacement renfort). Source unique pour toutes les autres parties :
++    // ensuite, la part de Cloé se calcule sur le devis − ce montant.
++    j.prestataires = this.pricing.computeProviders(planning, j.devis?.prestas ?? []);
+     this.saved.emit();
+   }
+ 
+-- 
+2.43.0
+
