@@ -1,0 +1,312 @@
+From 7b91b216ca22c83232fbb03c87056821d3144960 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 23 Jun 2026 07:24:40 +0000
+Subject: [PATCH] =?UTF-8?q?feat(factures):=20r=C3=A9cap=20=C3=A9v=C3=A9nem?=
+ =?UTF-8?q?ent,=20lignes=20renfort=20conserv=C3=A9es,=20recalcul=20du=20so?=
+ =?UTF-8?q?lde?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Récapitulatif de la fiche événement réordonné : Total / Payé / Reste à payer,
+  puis un trait noir, puis Prestataires et Moi en plus petit. Ajout de la ligne
+  « Reste à payer » (= total du devis − déjà payé).
+- Facture : le solde est recalculé à chaque modification des quantités (boutons
+  +/− , saisie, « Tout effacer ») — fini le solde figé après suppression d'une
+  prestation.
+- Les lignes de renfort ne sont plus retirées automatiquement de la facture :
+  on les conserve et on les signale visuellement (« pas pour moi » : liseré +
+  italique). Idem pour le champ « Paiement prestataires ».
+- Paiement prestataires recalculé : frais de déplacement des renforts (devis)
+  + si un planning existe, les prestations qui ne sont pas à moi (artiste ≠ 0).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/core/services/pricing.service.ts      | 22 +++++++----
+ .../features/documents/document-editor.html   | 10 +++--
+ .../features/documents/document-editor.scss   | 20 ++++++++++
+ src/app/features/documents/document-editor.ts | 37 +++++++++----------
+ src/app/features/journee/journee-detail.html  | 11 ++++--
+ src/app/features/journee/journee-detail.scss  | 28 +++++++++-----
+ src/app/features/journee/journee-detail.ts    |  5 +++
+ 7 files changed, 90 insertions(+), 43 deletions(-)
+
+diff --git a/src/app/core/services/pricing.service.ts b/src/app/core/services/pricing.service.ts
+index d6a39f2..5860beb 100644
+--- a/src/app/core/services/pricing.service.ts
++++ b/src/app/core/services/pricing.service.ts
+@@ -86,20 +86,28 @@ export class PricingService {
+     return sum;
+   }
+ 
+-  /** Part reversée aux prestataires/renforts sur une journée. */
++  /**
++   * Part reversée aux prestataires/renforts sur une journée :
++   *   frais de déplacement des renforts (lignes du devis)
++   * + si un planning est établi, les prestations qui ne sont PAS à moi dans le
++   *   planning (artiste ≠ 0).
++   */
+   providersPaid(journee: Journee): number {
+     let total = 0;
+-    for (const facture of journee.factures) {
+-      if (facture.paiementPrestas) total += facture.paiementPrestas;
++
++    for (const presta of journee.devis?.prestas ?? []) {
++      const nom = presta.nom ?? '';
++      if (nom.includes('renfort') && (presta.kilorly || nom.includes('éplacement'))) {
++        total += this.lineTotal(presta);
++      }
+     }
+-    if (total === 0 && journee.planning?.prestas) {
++
++    if (journee.planning?.prestas?.length) {
+       for (const presta of journee.planning.prestas) {
+         if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
+       }
+     }
+-    for (const presta of journee.devis?.prestas ?? []) {
+-      if (presta.nom?.includes('renfort')) total += this.lineTotal(presta);
+-    }
++
+     return Math.floor(total);
+   }
+ 
+diff --git a/src/app/features/documents/document-editor.html b/src/app/features/documents/document-editor.html
+index ed673a7..3546d4f 100644
+--- a/src/app/features/documents/document-editor.html
++++ b/src/app/features/documents/document-editor.html
+@@ -56,7 +56,7 @@
+             @if (presta.titre) {
+               <p class="presta-titre">{{ presta.nom }}</p>
+             } @else {
+-              <div class="presta-row">
++              <div class="presta-row" [class.presta-row--renfort]="isRenfort(presta)">
+                 <input
+                   class="input presta-nom"
+                   [(ngModel)]="presta.nom"
+@@ -70,7 +70,11 @@
+                   >
+                     −
+                   </button>
+-                  <input class="input qte-input" [(ngModel)]="presta.qte" />
++                  <input
++                    class="input qte-input"
++                    [(ngModel)]="presta.qte"
++                    (ngModelChange)="refreshSolde()"
++                  />
+                   <button class="icon-btn icon-btn--sm" (click)="addQte(presta)">+</button>
+                 </div>
+                 <input
+@@ -130,7 +134,7 @@
+               <label>Mode de paiement</label>
+               <input class="input" [(ngModel)]="values.modePaiement" />
+             </div>
+-            <div class="field">
++            <div class="field field--renfort">
+               <label>Paiement prestataires</label>
+               <input class="input" [(ngModel)]="values.paiementPrestas" inputmode="decimal" />
+             </div>
+diff --git a/src/app/features/documents/document-editor.scss b/src/app/features/documents/document-editor.scss
+index 303dd48..f0c4775 100644
+--- a/src/app/features/documents/document-editor.scss
++++ b/src/app/features/documents/document-editor.scss
+@@ -117,6 +117,26 @@
+   align-items: center;
+ }
+ 
++// Ligne de renfort : conservée sur la facture mais signalée « pas pour moi »
++// (liseré + italique), au lieu d'être retirée automatiquement.
++.presta-row--renfort,
++.field--renfort {
++  box-shadow: inset 3px 0 0 var(--brand);
++  background: #ab83ba12;
++  border-radius: var(--radius-sm);
++  padding-left: var(--space-2);
++}
++
++.presta-row--renfort .presta-nom {
++  font-style: italic;
++  color: var(--text-muted);
++}
++
++.field--renfort label {
++  font-style: italic;
++  color: var(--brand-strong);
++}
++
+ .qte {
+   display: flex;
+   align-items: center;
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index c5e7f89..6dbf478 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -248,18 +248,11 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+     const arrhes = this.prestas.find((p) => p.nom === 'Paiement Arrhes');
+     if (arrhes) arrhes.qte = 0;
+ 
+-    // Unités réalisées par un renfort (planning) : exclues de la facture cliente.
+-    const renforts = this.renfortUnitsByName(data);
++    // On reprend TOUTES les lignes du devis, renforts compris : elles ne sont
++    // plus retirées automatiquement, juste signalées visuellement (« pas pour
++    // moi ») dans l'éditeur.
+     for (const presta of data.devis?.prestas ?? []) {
+-      const nom = presta.nom ?? '';
+-      if (nom.includes('renfort')) continue; // ligne de renfort : non facturée ici
+-      let qte = presta.qte;
+-      if (qte !== '?' && !presta.kilorly) {
+-        const done = renforts.get(nom) ?? 0;
+-        if (done > 0) qte = Math.max(0, Number(qte) - done);
+-      }
+-      if (qte !== '?' && Number(qte) <= 0) continue; // entièrement faite par un renfort
+-      this.mergePresta({ ...presta, qte });
++      this.mergePresta({ ...presta });
+     }
+ 
+     let prior = 0;
+@@ -276,15 +269,9 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+     this.values.acompte = prior;
+   }
+ 
+-  /** Nombre d'unités, par nom de prestation, réalisées par un renfort (planning). */
+-  private renfortUnitsByName(data: Journee): Map<string, number> {
+-    const counts = new Map<string, number>();
+-    for (const presta of data.planning?.prestas ?? []) {
+-      if (presta.artisteIndex !== 0 && presta.nom) {
+-        counts.set(presta.nom, (counts.get(presta.nom) ?? 0) + 1);
+-      }
+-    }
+-    return counts;
++  /** Vrai si la ligne est une prestation de renfort (signalée « pas pour moi »). */
++  protected isRenfort(presta: Presta): boolean {
++    return (presta.nom ?? '').includes('renfort');
+   }
+ 
+   private factureContribution(facture: Facture): number {
+@@ -298,10 +285,19 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+ 
+   protected addQte(presta: Presta): void {
+     if (presta.qte !== '?') presta.qte = Number(presta.qte) + 1;
++    this.refreshSolde();
+   }
+ 
+   protected removeQte(presta: Presta): void {
+     if (presta.qte !== '?' && Number(presta.qte) > 0) presta.qte = Number(presta.qte) - 1;
++    this.refreshSolde();
++  }
++
++  /** Recalcule le solde d'une facture après modification des prestations. */
++  protected refreshSolde(): void {
++    if (this.isDevis) return;
++    const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
++    this.values.solde = this.total() - acompte;
+   }
+ 
+   protected canDecrement(presta: Presta): boolean {
+@@ -314,6 +310,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+ 
+   protected deleteAll(): void {
+     for (const presta of this.prestas) presta.qte = 0;
++    this.refreshSolde();
+   }
+ 
+   protected addDevisPrestas(): void {
+diff --git a/src/app/features/journee/journee-detail.html b/src/app/features/journee/journee-detail.html
+index dc0311c..6503007 100644
+--- a/src/app/features/journee/journee-detail.html
++++ b/src/app/features/journee/journee-detail.html
+@@ -214,16 +214,19 @@
+           </div>
+           <div class="resume__totals">
+             <div>
+-              <span>{{ data.factures.length === 0 ? 'Arrhes' : 'Payé' }}</span>
+-              <strong>{{ money(data.factures.length === 0 ? arrhes() : paid()) }}€</strong>
++              <span>Total</span><strong>{{ money(total()) }}€</strong>
+             </div>
+             <div>
+-              <span>Total</span><strong>{{ money(total()) }}€</strong>
++              <span>Payé</span><strong>{{ money(paid()) }}€</strong>
+             </div>
+             <div>
++              <span>Reste à payer</span><strong>{{ money(resteAPayer()) }}€</strong>
++            </div>
++            <div class="resume__sep"></div>
++            <div class="resume__small">
+               <span>Prestataires</span><strong>{{ money(providersPaid()) }}€</strong>
+             </div>
+-            <div>
++            <div class="resume__small">
+               <span>Moi</span><strong>{{ money(mine()) }}€</strong>
+             </div>
+           </div>
+diff --git a/src/app/features/journee/journee-detail.scss b/src/app/features/journee/journee-detail.scss
+index 4c1a817..d2722ae 100644
+--- a/src/app/features/journee/journee-detail.scss
++++ b/src/app/features/journee/journee-detail.scss
+@@ -190,16 +190,30 @@
+ }
+ 
+ .resume__totals {
+-  display: grid;
+-  grid-template-columns: repeat(2, 1fr);
+-  gap: var(--space-2) var(--space-5);
++  display: flex;
++  flex-direction: column;
+   margin-top: var(--space-4);
+ 
+-  > div {
++  > div:not(.resume__sep) {
+     @include flex-between;
+     gap: var(--space-3);
+     padding: 4px 0;
+-    border-bottom: 1px solid var(--border);
++  }
++
++  // Séparation « trait noir » avant la part prestataires / moi.
++  .resume__sep {
++    border-top: 2px solid #000;
++    margin: 6px 0;
++  }
++
++  // Part prestataires / moi : en plus petit.
++  .resume__small {
++    span,
++    strong {
++      font-size: var(--fs-xs);
++      color: var(--text-muted);
++      font-weight: 600;
++    }
+   }
+ 
+   span {
+@@ -209,10 +223,6 @@
+   strong {
+     color: var(--brand-strong);
+   }
+-
+-  @include mobile {
+-    grid-template-columns: 1fr;
+-  }
+ }
+ 
+ .fiche__actions {
+diff --git a/src/app/features/journee/journee-detail.ts b/src/app/features/journee/journee-detail.ts
+index 8786ad1..9116681 100644
+--- a/src/app/features/journee/journee-detail.ts
++++ b/src/app/features/journee/journee-detail.ts
+@@ -165,6 +165,11 @@ export class JourneeDetail {
+     return this.pricing.mine(this.data);
+   }
+ 
++  /** Reste à payer pour le client = total du devis − déjà payé. */
++  protected resteAPayer(): number {
++    return this.total() - this.paid();
++  }
++
+   protected factureSold(facture: Facture): number {
+     return this.pricing.factureSold(facture);
+   }
+-- 
+2.43.0
+
