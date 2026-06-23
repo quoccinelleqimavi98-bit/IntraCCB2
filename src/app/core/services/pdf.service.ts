@@ -30,17 +30,24 @@ export class PdfService {
     const width = element.scrollWidth || element.offsetWidth || 1;
     const height = element.scrollHeight || element.offsetHeight || 1;
 
-    const canvas = await html2canvas(element, {
-      scale: this.safeScale(width, height),
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      // Rend dans une fenêtre de la largeur EXACTE du document (et non celle de
-      // l'écran) : sur mobile, l'iframe interne d'html2canvas n'hérite pas du
-      // <meta viewport>, et sans ça le texte du planning était « gonflé » et
-      // débordait des colonnes.
-      windowWidth: width,
-      windowHeight: height,
-    });
+    // Neutralise temporairement les `transform: scale(...)` des ancêtres
+    // (l'aperçu zoomé l'applique sur mobile, où la place manque). html2canvas
+    // calcule mal les positions sous un parent mis à l'échelle : le texte se
+    // chevauchait (« 10h0010h30 »). Sur PC l'échelle vaut 1, d'où « ça marche
+    // sur PC ».
+    const restoreTransforms = this.neutralizeAncestorTransforms(element);
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await html2canvas(element, {
+        scale: this.safeScale(width, height),
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        windowWidth: width,
+        windowHeight: height,
+      });
+    } finally {
+      restoreTransforms();
+    }
     const imgData = canvas.toDataURL('image/jpeg');
     const pdf = new jsPDF('p', 'mm', 'a4');
 
@@ -62,6 +69,25 @@ export class PdfService {
     }
 
     pdf.save(`${filename}.pdf`);
+  }
+
+  /**
+   * Met à `none` les `transform` de l'élément et de ses ancêtres le temps de la
+   * capture, et renvoie une fonction pour les restaurer.
+   */
+  private neutralizeAncestorTransforms(element: HTMLElement): () => void {
+    const saved: Array<{ el: HTMLElement; transform: string }> = [];
+    let node: HTMLElement | null = element;
+    while (node) {
+      if (getComputedStyle(node).transform !== 'none') {
+        saved.push({ el: node, transform: node.style.transform });
+        node.style.transform = 'none';
+      }
+      node = node.parentElement;
+    }
+    return () => {
+      for (const { el, transform } of saved) el.style.transform = transform;
+    };
   }
 
   /**
