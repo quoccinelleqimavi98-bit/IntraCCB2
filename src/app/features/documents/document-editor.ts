@@ -273,6 +273,12 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     return presta.renfort === true || (presta.nom ?? '').includes('renfort');
   }
 
+  /** Bascule une ligne entre « ma part » et « part prestataire » et recalcule. */
+  protected toggleRenfort(presta: Presta): void {
+    presta.renfort = !this.isRenfort(presta);
+    this.refreshSolde();
+  }
+
   private factureContribution(facture: Facture): number {
     if (facture.solde) return this.pricing.factureSold(facture);
     let sum = 0;

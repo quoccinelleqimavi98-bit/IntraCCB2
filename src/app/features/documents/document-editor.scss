@@ -137,6 +137,25 @@
   color: var(--brand-strong);
 }
 
+// Bascule « Moi / Presta » sur une ligne de facture.
+.presta-renfort-toggle {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &.active {
+    background: #ab83ba;
+    border-color: #ab83ba;
+    color: #fff;
+  }
+}
+
 .qte {
   display: flex;
   align-items: center;
