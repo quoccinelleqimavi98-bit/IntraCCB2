@@ -130,7 +130,9 @@ export class StatsService {
     untilNow: boolean,
   ): number {
     const today = startOfToday();
-    let data = journees.filter((j) => this.inPeriod(j.date, year, month));
+    let data = journees.filter(
+      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Annule,
+    );
     if (fromNow) data = data.filter((j) => onOrAfter(j.date, today));
     else if (untilNow) data = data.filter((j) => before(j.date, today));
 
@@ -184,7 +186,11 @@ export class StatsService {
     // déjà soldé. Les contributions négatives (journées déjà sur-encaissées) se
     // compensent dans la somme, exactement comme avant.
     let data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && this.hasQuote(j),
+      (j) =>
+        this.inPeriod(j.date, year, month) &&
+        j.etape !== 999 &&
+        j.statut !== Statut.Annule &&
+        this.hasQuote(j),
     );
     if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
 
@@ -201,10 +207,22 @@ export class StatsService {
   /** Total reversé aux prestataires/renforts sur la période (= part figée). */
   helpers(journees: Journee[], year: number, month: number | null): number {
     const data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Demande,
+      (j) =>
+        this.inPeriod(j.date, year, month) &&
+        j.statut !== Statut.Demande &&
+        j.statut !== Statut.Annule,
     );
     let total = 0;
     for (const j of data) total += this.pricing.providersPaid(j);
+    return Math.trunc(total);
+  }
+
+  /** Pourboires en argent liquide sur la période (non soumis aux taxes). */
+  cash(journees: Journee[], year: number, month: number | null): number {
+    let total = 0;
+    for (const j of journees) {
+      if (j.argentLiquide && this.inPeriod(j.date, year, month)) total += Number(j.argentLiquide);
+    }
     return Math.trunc(total);
   }
 
@@ -240,7 +258,11 @@ export class StatsService {
   monthFacturesMissing(journees: Journee[], year: number, month: number | null): FactureLigne[] {
     const lignes: FactureLigne[] = [];
     const data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.etape !== 999 && j.statut !== Statut.Demande,
+      (j) =>
+        this.inPeriod(j.date, year, month) &&
+        j.etape !== 999 &&
+        j.statut !== Statut.Demande &&
+        j.statut !== Statut.Annule,
     );
     for (const j of data) {
       if (!this.hasQuote(j)) continue;
@@ -275,7 +297,11 @@ export class StatsService {
   /** Nombre de journées à une étape donnée (hors perso). */
   etapeCount(journees: Journee[], etape: number, year: number, month: number | null): number {
     return journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.etape === etape && j.statut !== Statut.Perso,
+      (j) =>
+        this.inPeriod(j.date, year, month) &&
+        j.etape === etape &&
+        j.statut !== Statut.Perso &&
+        j.statut !== Statut.Annule,
     ).length;
   }
 

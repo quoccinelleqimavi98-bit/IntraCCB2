@@ -13,6 +13,7 @@ export const STATUT_UI: Record<Statut, StatutUi> = {
   [Statut.Autre]: { label: 'Autre', cssClass: 'statut-autre' },
   [Statut.Perso]: { label: 'Perso', cssClass: 'statut-perso' },
   [Statut.PersoFull]: { label: 'Perso', cssClass: 'statut-perso' },
+  [Statut.Annule]: { label: 'Annulé', cssClass: 'statut-over' },
 };
 
 /** Classe de couleur d'une entrée (grise si l'événement est terminé). */

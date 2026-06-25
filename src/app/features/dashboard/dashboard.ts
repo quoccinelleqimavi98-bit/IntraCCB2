@@ -60,7 +60,7 @@ export class Dashboard {
   protected readonly months = MONTHS_FR;
   protected readonly chartGeo = CHART;
 
-  private readonly entries = this.store.calendarEntries;
+  private readonly entries = this.store.statsEntries;
 
   protected changeYear(delta: number): void {
     this.year.update((y) => y + delta);
@@ -91,6 +91,14 @@ export class Dashboard {
   protected readonly total = computed(() =>
     this.stats.totalRevenue(this.entries(), this.year(), this.month()),
   );
+  /** Pourboires en argent liquide (non soumis aux taxes). */
+  protected readonly cash = computed(() =>
+    this.stats.cash(this.entries(), this.year(), this.month()),
+  );
+  /** Total taxes déduites : net de la part taxable + argent liquide (non taxé). */
+  protected netWithCash(amount: number): number {
+    return this.net(amount) + this.cash();
+  }
 
   protected readonly hours = computed(() => {
     const e = this.entries();

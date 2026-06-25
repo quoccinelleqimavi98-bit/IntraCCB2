@@ -31,6 +31,8 @@ export interface Journee {
   mariagenet?: string;
   /** Montant total reversé aux renforts, saisi manuellement le cas échéant. */
   prestataires?: number;
+  /** Pourboire en argent liquide (non soumis aux taxes dans le bilan). */
+  argentLiquide?: number;
   /** Avis client demandé / obtenu. */
   avis?: boolean;
 }

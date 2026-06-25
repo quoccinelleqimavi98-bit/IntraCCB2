@@ -40,6 +40,7 @@ export class JourneeDetail {
   readonly closed = output<void>();
   readonly removed = output<void>();
   readonly closedEvent = output<void>();
+  readonly cancelled = output<void>();
   readonly eventAdded = output<void>();
   readonly relanced = output<void>();
   readonly wentToWedding = output<void>();

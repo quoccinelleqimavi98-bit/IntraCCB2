@@ -33,13 +33,18 @@
     </div>
     <div class="kpi card">
       <span class="kpi__label">Total {{ periodLabel }}</span>
-      <span class="kpi__value">{{ money(total()) }}€</span>
-      <span class="kpi__sub muted">{{ money(net(total())) }}€ net</span>
+      <span class="kpi__value">{{ money(total() + cash()) }}€</span>
+      <span class="kpi__sub muted">{{ money(netWithCash(total())) }}€ net</span>
     </div>
     <div class="kpi card">
       <span class="kpi__label">Estimation {{ periodLabel }}</span>
-      <span class="kpi__value">{{ money(estimate()) }}€</span>
-      <span class="kpi__sub muted">{{ money(net(estimate())) }}€ net</span>
+      <span class="kpi__value">{{ money(estimate() + cash()) }}€</span>
+      <span class="kpi__sub muted">{{ money(netWithCash(estimate())) }}€ net</span>
+    </div>
+    <div class="kpi card">
+      <span class="kpi__label">Argent liquide</span>
+      <span class="kpi__value">{{ money(cash()) }}€</span>
+      <span class="kpi__sub muted">non taxé</span>
     </div>
     <div class="kpi card">
       <span class="kpi__label">Paiement renforts</span>

@@ -282,6 +282,7 @@ export function journeeToDomain(dto: JourneeDto): Journee {
     planning: dto.planning ? planningToDomain(dto.planning) : undefined,
     mariagenet: dto.mariagenet,
     prestataires: toOptionalNumber(dto.prestataires),
+    argentLiquide: toOptionalNumber(dto.argentliquide),
     avis: toBool(dto.avis),
   };
 }
@@ -307,6 +308,7 @@ export function journeeToDto(j: Journee): JourneeDto {
   if (j.client.mail) dto.mail = j.client.mail;
   if (j.mariagenet) dto.mariagenet = j.mariagenet;
   if (j.prestataires !== undefined) dto.prestataires = j.prestataires;
+  if (j.argentLiquide !== undefined) dto.argentliquide = j.argentLiquide;
   if (j.avis !== undefined) dto.avis = j.avis;
 
   return dto;

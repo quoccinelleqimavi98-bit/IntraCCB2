@@ -12,6 +12,8 @@ export enum Statut {
   Autre = 'autre',
   Perso = 'perso',
   PersoFull = 'persofull',
+  /** Événement annulé : les factures comptent toujours, mais plus le devis. */
+  Annule = 'annule',
 }
 
 /** Avancement du dossier d'une journée. */

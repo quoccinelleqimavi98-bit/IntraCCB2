@@ -92,6 +92,7 @@ export interface JourneeDto {
   mail?: string;
   mariagenet?: string;
   prestataires?: number | string;
+  argentliquide?: number | string;
   avis?: string | boolean;
   devis?: DevisDto;
   factures?: FactureDto[];

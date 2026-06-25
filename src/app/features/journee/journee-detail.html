@@ -77,6 +77,15 @@
               }
             </select>
           </div>
+          <div class="field">
+            <label>Argent liquide (pourboire)</label>
+            <input
+              class="input"
+              [(ngModel)]="data.argentLiquide"
+              inputmode="decimal"
+              placeholder="0"
+            />
+          </div>
           @if (data.statut === Statut.Reserve) {
             <label class="checkbox">
               <input type="checkbox" [(ngModel)]="data.avis" />
@@ -281,6 +290,9 @@
       <button class="btn btn--primary" (click)="saved.emit()">Enregistrer</button>
       <button class="btn btn--ghost" (click)="eventAdded.emit()">Ajouter un événement</button>
       <button class="btn btn--ghost" (click)="closedEvent.emit()">Clôturer</button>
+      @if (data.id !== undefined && data.statut !== Statut.Annule) {
+        <button class="btn btn--ghost" (click)="cancelled.emit()">Annuler</button>
+      }
       @if (data.statut === Statut.Demande) {
         <button class="btn btn--subtle" (click)="relanced.emit()">Relance</button>
       }

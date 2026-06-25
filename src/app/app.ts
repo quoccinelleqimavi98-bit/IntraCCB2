@@ -273,6 +273,15 @@ export class App {
     // calendrier) on ouvre le premier et la navigation jour/événement prend le
     // relais.
     const index = target.id !== undefined ? events.findIndex((e) => e.id === target.id) : -1;
+    if (index < 0 && target.id !== undefined) {
+      // Événement ANNULÉ (exclu du calendrier) : on y accède via sa facture.
+      const cancelled = this.store.journees().find((j) => j.id === target.id);
+      if (cancelled) {
+        this.eventIndex = 0;
+        this.open(deepClone(cancelled));
+        return;
+      }
+    }
     this.eventIndex = index >= 0 ? index : 0;
     this.open(events.length > 0 ? deepClone(events[this.eventIndex]) : blankJournee(target.date));
   }
@@ -312,6 +321,18 @@ export class App {
     const journee = this.selected();
     if (!journee) return;
     journee.etape = Etape.Termine;
+    this.store.save(journee);
+    this.selected.set(null);
+  }
+
+  protected async annulerFiche(): Promise<void> {
+    const journee = this.selected();
+    if (!journee) return;
+    const ok = await this.dialog.confirm(
+      'Annuler cet événement ? Ses factures restent comptées dans le bilan, mais il disparaît du planning (accessible via sa facture).',
+    );
+    if (!ok) return;
+    journee.statut = Statut.Annule;
     this.store.save(journee);
     this.selected.set(null);
   }

@@ -40,11 +40,11 @@ export class PlanningStore {
   readonly count = computed(() => this._journees().length);
 
   /**
-   * Entrées à afficher au calendrier : les journées (hors statut « essai ») plus
-   * une entrée « essai » reconstruite à la date d'essai de chaque journée.
-   * Reproduit le comportement de l'application d'origine.
+   * Entrées pour le BILAN : les journées (hors statut « essai ») plus une entrée
+   * « essai » reconstruite à la date d'essai de chaque journée. Inclut les
+   * événements annulés (leurs factures comptent toujours).
    */
-  readonly calendarEntries = computed<Journee[]>(() => {
+  readonly statsEntries = computed<Journee[]>(() => {
     const base = this._journees().filter((j) => j.statut !== Statut.Essai);
     const essais: Journee[] = [];
     for (const j of base) {
@@ -62,6 +62,15 @@ export class PlanningStore {
     }
     return [...base, ...essais];
   });
+
+  /**
+   * Entrées du CALENDRIER : comme `statsEntries`, mais sans les événements
+   * ANNULÉS (ils ne s'affichent ni au planning ni au clic sur le jour ; on n'y
+   * accède qu'en cliquant sur leur facture dans le bilan).
+   */
+  readonly calendarEntries = computed<Journee[]>(() =>
+    this.statsEntries().filter((j) => j.statut !== Statut.Annule),
+  );
 
   /** Prochain événement à venir (le plus proche dans le futur), ou null. */
   readonly upcoming = computed<Journee | null>(() => {
