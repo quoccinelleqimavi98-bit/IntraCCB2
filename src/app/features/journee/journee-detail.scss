@@ -240,6 +240,16 @@
   }
 }
 
+// Saisie du pourboire, juste au-dessus du tableau de récap.
+.resume__cash {
+  margin-bottom: var(--space-4);
+}
+
+// Ligne « argent liquide » dans les totaux : montant mis en valeur.
+.resume__totals .resume__cash-line strong {
+  color: var(--brand-strong);
+}
+
 .fiche__actions {
   display: flex;
   flex-wrap: wrap;

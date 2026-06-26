@@ -183,6 +183,11 @@ export class JourneeDetail {
     return this.pricing.mine(this.data);
   }
 
+  /** Pourboire (argent liquide) saisi sur la fiche, en nombre. */
+  protected cash(): number {
+    return Number(this.data.argentLiquide) || 0;
+  }
+
   /** Reste à payer pour le client = total du devis − déjà payé. */
   protected resteAPayer(): number {
     return this.total() - this.paid();

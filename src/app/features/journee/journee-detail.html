@@ -77,15 +77,6 @@
               }
             </select>
           </div>
-          <div class="field">
-            <label>Argent liquide (pourboire)</label>
-            <input
-              class="input"
-              [(ngModel)]="data.argentLiquide"
-              inputmode="decimal"
-              placeholder="0"
-            />
-          </div>
           @if (data.statut === Statut.Reserve) {
             <label class="checkbox">
               <input type="checkbox" [(ngModel)]="data.avis" />
@@ -208,6 +199,17 @@
       @if (hasDevis) {
         <section class="card section">
           <h3 class="section__title">Récapitulatif</h3>
+          <div class="grid resume__cash">
+            <div class="field field--full">
+              <label>Argent liquide (pourboire)</label>
+              <input
+                class="input"
+                [(ngModel)]="data.argentLiquide"
+                inputmode="decimal"
+                placeholder="0"
+              />
+            </div>
+          </div>
           <div class="resume">
             <div class="resume__head">
               <span>Qté</span><span>Prestation</span><span>Réduc</span><span>Total</span>
@@ -241,6 +243,11 @@
             <div class="resume__small">
               <span>Moi</span><strong>{{ money(mine()) }}€</strong>
             </div>
+            @if (cash() > 0) {
+              <div class="resume__small resume__cash-line">
+                <span>Argent liquide (pourboire)</span><strong>{{ money(cash()) }}€</strong>
+              </div>
+            }
           </div>
         </section>
       }
