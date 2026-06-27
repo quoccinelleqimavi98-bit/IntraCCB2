@@ -226,7 +226,9 @@ export class App {
   // --- Documents (devis / facture) ------------------------------------------
 
   protected openDocument(request: DocumentRequest): void {
-    const numbers = this.store.nextNumbers();
+    // On inclut la copie de travail courante : ses devis/factures déjà créés
+    // mais pas encore enregistrés doivent compter dans la numérotation.
+    const numbers = this.store.nextNumbers(this.selected() ?? undefined);
     this.nextDevis.set(numbers.devis);
     this.nextFacture.set(numbers.facture);
     this.documentRequest.set(request);

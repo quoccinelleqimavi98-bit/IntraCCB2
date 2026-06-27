@@ -90,10 +90,17 @@ export class PlanningStore {
     return this.calendarEntries().filter((j) => j.date === date);
   }
 
-  /** Prochains numéros de devis et de facture pour l'année en cours. */
-  nextNumbers(): { devis: number; facture: number } {
+  /**
+   * Prochains numéros de devis et de facture pour l'année en cours.
+   *
+   * `pending` est la copie de travail en cours d'édition : ses documents ne sont
+   * pas encore persistés dans le store, on les inclut donc dans le calcul. Sans
+   * ça, enchaîner plusieurs factures sur le même événement (arrhes puis solde…)
+   * avant d'enregistrer leur attribuerait à toutes le même numéro.
+   */
+  nextNumbers(pending?: Journee): { devis: number; facture: number } {
     const year = new Date().getFullYear();
-    const journees = this._journees();
+    const journees = pending ? [...this._journees(), pending] : this._journees();
 
     const devisNums = journees
       .filter((j) => j.devis?.creation && yearOfFr(j.devis.creation) === year)
