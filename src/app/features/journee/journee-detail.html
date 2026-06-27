@@ -196,20 +196,24 @@
         </div>
       </section>
 
+      <section class="card section">
+        <h3 class="section__title">Argent liquide</h3>
+        <div class="grid">
+          <div class="field field--full">
+            <label>Pourboire (non taxé)</label>
+            <input
+              class="input"
+              [(ngModel)]="data.argentLiquide"
+              inputmode="decimal"
+              placeholder="0"
+            />
+          </div>
+        </div>
+      </section>
+
       @if (hasDevis) {
         <section class="card section">
           <h3 class="section__title">Récapitulatif</h3>
-          <div class="grid resume__cash">
-            <div class="field field--full">
-              <label>Argent liquide (pourboire)</label>
-              <input
-                class="input"
-                [(ngModel)]="data.argentLiquide"
-                inputmode="decimal"
-                placeholder="0"
-              />
-            </div>
-          </div>
           <div class="resume">
             <div class="resume__head">
               <span>Qté</span><span>Prestation</span><span>Réduc</span><span>Total</span>
