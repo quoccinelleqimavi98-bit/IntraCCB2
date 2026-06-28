@@ -1,0 +1,56 @@
+From e5f75fbc9593d44a1ba82f4c0f8b878ce1eaebdd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 28 Jun 2026 10:26:47 +0000
+Subject: [PATCH 2/2] feat(avenant): dupliquer confie une part au prestataire
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dans un avenant, dupliquer une ligne confie une part au prestataire : la nouvelle
+ligne démarre à 1 et passe automatiquement en « prestataire » ; si ma ligne de
+base est ≥ 2, on lui en retire 1 (le total reste identique). Hors avenant
+(facture), le comportement reste une simple copie.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/features/documents/document-editor.ts | 20 ++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index d9bdccd..e786554 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -348,14 +348,24 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+   }
+ 
+   /**
+-   * Duplique une ligne (copie insérée juste en dessous). Permet de répartir un
+-   * forfait en plusieurs exemplaires entre ma part et celle d'un prestataire :
+-   * ex. forfait ×3 → dupliquer, mettre ×1 (Moi) et ×2 (Presta).
++   * Duplique une ligne (copie insérée juste en dessous).
++   *
++   * Dans un avenant, dupliquer confie une part au prestataire : la nouvelle ligne
++   * démarre à 1 et passe automatiquement en « prestataire » ; si ma ligne de base
++   * est ≥ 2, on lui en retire 1 (le total reste identique). Ailleurs (facture),
++   * simple copie de la ligne.
+    */
+   protected duplicatePresta(presta: Presta): void {
+     const index = this.prestas.indexOf(presta);
+-    const copy: Presta = { ...presta, renfortQte: undefined };
+-    this.prestas.splice(index + 1, 0, copy);
++    if (this.isAvenant) {
++      const base = Number(presta.qte);
++      if (presta.qte !== '?' && base >= 2) presta.qte = base - 1;
++      const copy: Presta = { ...presta, renfortQte: undefined, renfort: true, qte: 1 };
++      this.prestas.splice(index + 1, 0, copy);
++    } else {
++      const copy: Presta = { ...presta, renfortQte: undefined };
++      this.prestas.splice(index + 1, 0, copy);
++    }
+     this.refreshSolde();
+   }
+ 
+-- 
+2.43.0
+
