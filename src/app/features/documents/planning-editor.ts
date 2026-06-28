@@ -20,7 +20,6 @@ import {
   Planning,
   PlanningPresta,
   PlanningSlot,
-  Presta,
   SlotType,
 } from '../../core/models';
 import { DialogService } from '../../core/services/dialog.service';
@@ -316,36 +315,10 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     };
     if (!j.mariage.ceremonie) j.mariage.ceremonie = this.state.ceremonie;
     j.planning = planning;
-    // Fige le paiement prestataires (prestations du planning non à moi + frais
-    // de déplacement renfort). Source unique pour toutes les autres parties :
-    // ensuite, la part de Cloé se calcule sur le devis − ce montant.
-    j.prestataires = this.pricing.computeProviders(planning, j.devis?.prestas ?? []);
-    // Fige, sur chaque ligne du devis, le nombre d'unités confiées à un
-    // prestataire (d'après le planning) → sert à scinder l'affichage (récap,
-    // facture). Recalcul idempotent à chaque sauvegarde du planning.
-    this.storeRenfortQte(j);
+    // Plus aucun calcul « prestataire » à la sauvegarde : la distribution
+    // intelligente ne se fait qu'à la création (voir ngOnInit / planning.build),
+    // ensuite on enregistre simplement l'état édité.
     this.saved.emit();
-  }
-
-  /** Annote chaque ligne du devis avec le nombre d'unités confiées au planning. */
-  private storeRenfortQte(j: Journee): void {
-    const lines = (j.devis?.prestas ?? []).filter(
-      (d) => d.qte !== '?' && !d.kilorly && !(d.nom ?? '').includes('renfort'),
-    );
-    const counts = new Map<Presta, number>();
-    // Chaque prestation du planning confiée à un renfort (artiste ≠ 0) est
-    // rattachée à sa ligne de devis : d'abord par intitulé, sinon par prix
-    // (robuste si le devis a été renommé après la création du planning).
-    for (const pp of this.state.prestas) {
-      if (pp.artisteIndex === 0) continue;
-      const byName = pp.nom ? lines.find((d) => d.nom === pp.nom) : undefined;
-      const line = byName ?? lines.find((d) => (d.prix ?? 0) === (pp.prix ?? 0));
-      if (line) counts.set(line, (counts.get(line) ?? 0) + 1);
-    }
-    for (const presta of j.devis?.prestas ?? []) {
-      const done = counts.get(presta) ?? 0;
-      presta.renfortQte = done > 0 ? Math.min(done, Number(presta.qte)) : undefined;
-    }
   }
 
   protected async generatePdf(): Promise<void> {
