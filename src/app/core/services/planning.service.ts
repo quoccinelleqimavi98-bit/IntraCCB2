@@ -54,6 +54,10 @@ export class PlanningService {
       const cat = catalog.find((c) => c.nom === p.nom);
       if (!cat || !cat.time) continue;
       const qte = p.qte === '?' ? 0 : Number(p.qte);
+      // Reprend la répartition du dernier avenant : une ligne confiée à un
+      // prestataire (drapeau renfort) va au 1er renfort (artiste 1) ; sinon à moi.
+      const provider = p.renfort === true || (p.nom ?? '').includes('renfort');
+      const artisteIndex = provider && state.artists.length > 1 ? 1 : 0;
       for (let i = 0; i < qte; i++) {
         const press: PlanningPresta = {
           ...p,
@@ -61,14 +65,14 @@ export class PlanningService {
           coiffure: cat.coiffure,
           time: cat.time,
           bride: cat.bride,
-          artisteIndex: 0,
+          artisteIndex,
           slotIndex: this.nextIndex(state),
         };
         if (press.bride) {
-          mariee = { ...press };
+          mariee = { ...press, artisteIndex: 0 };
         } else {
           state.prestas.push(press);
-          this.addSlot(state, press, 0);
+          this.addSlot(state, press, artisteIndex);
         }
       }
     }
