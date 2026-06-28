@@ -234,8 +234,6 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       if (facture.annee) this.values.annee = facture.annee;
       if (facture.solde !== undefined) this.values.solde = facture.solde;
       if (facture.realsold !== undefined) this.values.realsold = facture.realsold;
-      if (facture.paiementPrestas !== undefined)
-        this.values.paiementPrestas = facture.paiementPrestas;
       let prior = 0;
       for (let i = 0; i < idx; i++) prior += this.factureContribution(data.factures[i]);
       this.values.acompte = prior;
@@ -243,7 +241,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       this.prestas.push({
         qte: 1,
         nom: 'Paiement Arrhes',
-        prix: this.pricing.arrhes(data.devis?.prestas ?? []),
+        prix: this.pricing.arrhes(this.pricing.lastDevis(data)?.prestas ?? []),
         reduc: 0,
       });
     } else {
@@ -282,20 +280,19 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   }
 
   /**
-   * Reprend les lignes du devis dans la facture et calcule l'acompte déjà versé.
-   * Les unités confiées à un prestataire (figées au planning, `renfortQte`) sont
-   * séparées sur une ligne distincte « part renfort » (ex. 6 invitées dont 2
-   * confiées → ligne à moi ×4 + ligne renfort ×2). Le total est inchangé.
+   * Reprend UNIQUEMENT MES lignes du dernier devis dans la facture (les parts
+   * prestataire en sont exclues : elles sont réglées à part) et calcule l'acompte
+   * déjà versé. La facture ne concerne donc jamais le prestataire.
    */
   private addDevisToFacture(data: Journee): void {
     const arrhes = this.prestas.find((p) => p.nom === 'Paiement Arrhes');
     if (arrhes) arrhes.qte = 0;
 
-    for (const presta of this.pricing.splitProviders(data.devis?.prestas ?? [])) {
+    for (const presta of this.pricing.myPrestas(this.pricing.lastDevis(data)?.prestas ?? [])) {
       this.mergePresta({ ...presta });
     }
 
-    // Le déjà-versé est déduit via l'acompte (la facture porte le total complet).
+    // Le déjà-versé est déduit via l'acompte (la facture porte mon total complet).
     let prior = 0;
     for (const facture of data.factures) prior += this.factureContribution(facture);
     this.values.acompte = prior;
@@ -331,31 +328,15 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     this.refreshSolde();
   }
 
-  /** Somme des lignes prestataire (renfort) de la facture. */
-  private providersTotal(): number {
-    let sum = 0;
-    for (const p of this.prestas) if (this.isRenfort(p)) sum += this.pricing.lineTotal(p);
-    return sum;
-  }
-
   /**
-   * Recalcule le paiement prestataires (= lignes renfort de la facture) et le
-   * solde = total − déjà versé − paiement prestataires (ce que le client me
-   * doit À MOI). Appelé à chaque changement de prestation.
+   * Recalcule le solde = mon total − déjà versé. La facture ne porte que mes
+   * prestations ; il n'y a plus de paiement prestataires. Appelé à chaque
+   * modification d'une ligne.
    */
   protected refreshSolde(): void {
     if (this.isDevis) return;
     const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-    const providers = this.providersTotal();
-    this.values.paiementPrestas = providers;
-    this.values.solde = this.total() - acompte - providers;
-  }
-
-  /** Met à jour le solde après saisie manuelle du paiement prestataires. */
-  protected onPaiementPrestasChange(): void {
-    if (this.isDevis) return;
-    const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-    this.values.solde = this.total() - acompte - Number(this.values.paiementPrestas || 0);
+    this.values.solde = this.total() - acompte;
   }
 
   protected canDecrement(presta: Presta): boolean {
@@ -449,7 +430,7 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       if (data.etape === Etape.Devis) data.etape = Etape.Arrhes;
     } else {
       const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-      let solde = this.total() - acompte - this.providersTotal();
+      let solde = this.total() - acompte;
       if (this.values.solde !== '') solde = Number(this.values.solde);
 
       const facture: Facture = {
@@ -460,8 +441,6 @@ export class DocumentEditor implements OnInit, AfterViewInit {
         solde,
       };
       if (this.values.modePaiement) facture.type = this.values.modePaiement as PaymentType;
-      const providers = Number(this.values.paiementPrestas);
-      if (providers) facture.paiementPrestas = providers;
       if (this.values.realsold !== '' && Number(this.values.realsold) !== 0) {
         facture.realsold = Number(this.values.realsold);
       }

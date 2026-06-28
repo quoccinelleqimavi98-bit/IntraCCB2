@@ -92,19 +92,21 @@
                 <span class="presta-total">{{ lineLabel(presta) }}</span>
                 @if (!isDevis || isAvenant) {
                   <div class="presta-actions">
-                    <button
-                      type="button"
-                      class="presta-renfort-toggle"
-                      [class.active]="isRenfort(presta)"
-                      (click)="toggleRenfort(presta)"
-                      [title]="
-                        isRenfort(presta)
-                          ? 'Part prestataire — cliquer pour me l’attribuer'
-                          : 'Ma part — cliquer pour l’attribuer au prestataire'
-                      "
-                    >
-                      {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
-                    </button>
+                    @if (isAvenant) {
+                      <button
+                        type="button"
+                        class="presta-renfort-toggle"
+                        [class.active]="isRenfort(presta)"
+                        (click)="toggleRenfort(presta)"
+                        [title]="
+                          isRenfort(presta)
+                            ? 'Part prestataire — cliquer pour me l’attribuer'
+                            : 'Ma part — cliquer pour l’attribuer au prestataire'
+                        "
+                      >
+                        {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
+                      </button>
+                    }
                     <button
                       type="button"
                       class="presta-act"
@@ -166,15 +168,6 @@
             <div class="field">
               <label>Mode de paiement</label>
               <input class="input" [(ngModel)]="values.modePaiement" />
-            </div>
-            <div class="field field--renfort">
-              <label>Paiement prestataires</label>
-              <input
-                class="input"
-                [(ngModel)]="values.paiementPrestas"
-                (ngModelChange)="onPaiementPrestasChange()"
-                inputmode="decimal"
-              />
             </div>
             <label class="checkbox">
               <input type="checkbox" [(ngModel)]="acquittee" />
