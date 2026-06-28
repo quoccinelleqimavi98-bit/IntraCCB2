@@ -50,6 +50,15 @@
       <div class="fullligne"></div>
 
       @for (presta of orderedLines(); track $index) {
+        @if (providerLines().length && $index === providerStart()) {
+          <div class="provider-sep">
+            {{
+              fr()
+                ? 'Prestations assurées par un(e) prestataire de renfort — facturées et réglées directement auprès de lui/d’elle (non comprises dans mon total) :'
+                : 'Services provided by a support provider — invoiced and paid directly to them (not included in my total):'
+            }}
+          </div>
+        }
         <div class="table">
           <p>{{ qteLabel(presta) }}</p>
           <p class="textoverflow">{{ nameLabel(presta) }}</p>
@@ -74,41 +83,10 @@
         </div>
 
         @if (providerLines().length > 0) {
-          <div class="provider-block">
-            <p class="provider-title">
-              {{
-                fr()
-                  ? 'Prestations assurées par un(e) prestataire de renfort — facturées et réglées directement auprès de lui/d’elle (non comprises dans le total ci-dessus) :'
-                  : 'Services provided by a support provider — invoiced and paid directly to them (not included in the total above):'
-              }}
-            </p>
-            <div class="table margtop">
-              <p>{{ fr() ? 'Quantité' : 'Quantity' }}</p>
-              <p>Description</p>
-              <p>{{ fr() ? 'Prix Unitaire' : 'Unit Price' }}</p>
-              <p>{{ fr() ? 'Reduction' : 'Discount' }}</p>
-              <p>Total</p>
-            </div>
-            <div class="fullligne"></div>
-            @for (presta of providerLines(); track $index) {
-              <div class="table">
-                <p>{{ qteLabel(presta) }}</p>
-                <p class="textoverflow">{{ nameLabel(presta) }}</p>
-                <p>{{ prixLabel(presta) }}</p>
-                <p>{{ reducLabel(presta) }}</p>
-                @if (lineTotal(presta) > 0) {
-                  <p>{{ money(lineTotal(presta)) }}€</p>
-                } @else {
-                  <p class="green">Offert</p>
-                }
-              </div>
-            }
-            <div class="fullligne"></div>
-            <div class="flex">
-              <p class="tinytext echeance">&nbsp;</p>
-              <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
-              <p class="bold total">{{ money(providerTotal()) }}€</p>
-            </div>
+          <div class="flex">
+            <p class="tinytext echeance">&nbsp;</p>
+            <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
+            <p class="bold total">{{ money(providerTotal()) }}€</p>
           </div>
         }
 

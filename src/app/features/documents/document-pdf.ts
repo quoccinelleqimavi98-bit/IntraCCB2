@@ -62,21 +62,26 @@ export class DocumentPdf {
   }
 
   /**
-   * Lignes affichées (devis, avenant ET facture) : UNIQUEMENT mes prestations.
-   * Les parts confiées à un prestataire ne figurent jamais sur le document
-   * (elles sont facturées et réglées directement au prestataire).
+   * Lignes du tableau : sur une facture, uniquement les miennes. Sur un
+   * devis/avenant, les miennes PUIS celles du prestataire, dans un seul tableau
+   * séparé par la mention dédiée (voir `providerStart`).
    */
   protected orderedLines(): Presta[] {
-    return this.mineLines();
+    return this.isFacture() ? this.mineLines() : [...this.mineLines(), ...this.providerLines()];
+  }
+
+  /** Indice de la 1re ligne prestataire dans `orderedLines` (pour la séparation). */
+  protected providerStart(): number {
+    return this.mineLines().length;
   }
 
   protected lineTotal(presta: Presta): number {
     return this.pricing.lineTotal(presta);
   }
 
-  /** Total affiché = somme de MES prestations (jamais cumulé avec le prestataire). */
+  /** Mon total = somme de MES prestations uniquement (jamais le prestataire). */
   protected total(): number {
-    return this.pricing.total(this.orderedLines());
+    return this.pricing.total(this.mineLines());
   }
 
   /** Somme des prestations confiées au prestataire (info, hors de mon total). */
