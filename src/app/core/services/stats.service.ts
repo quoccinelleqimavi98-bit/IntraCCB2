@@ -251,7 +251,8 @@ export class StatsService {
         });
       }
     }
-    return this.sortByCreation(lignes);
+    // Encaissé : la date la plus tardive en haut, la plus ancienne en bas.
+    return this.sortByCreation(lignes, true);
   }
 
   /** Journées avec un reste à encaisser sur la période (hors demandes et clôturées). */
@@ -332,11 +333,11 @@ export class StatsService {
       });
   }
 
-  private sortByCreation(lignes: FactureLigne[]): FactureLigne[] {
+  private sortByCreation(lignes: FactureLigne[], desc = false): FactureLigne[] {
     return lignes.sort((a, b) => {
       const da = parseFrDate(a.creation)?.getTime() ?? 0;
       const db = parseFrDate(b.creation)?.getTime() ?? 0;
-      return da - db;
+      return desc ? db - da : da - db;
     });
   }
 }
