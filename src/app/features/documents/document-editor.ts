@@ -348,14 +348,24 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   }
 
   /**
-   * Duplique une ligne (copie insérée juste en dessous). Permet de répartir un
-   * forfait en plusieurs exemplaires entre ma part et celle d'un prestataire :
-   * ex. forfait ×3 → dupliquer, mettre ×1 (Moi) et ×2 (Presta).
+   * Duplique une ligne (copie insérée juste en dessous).
+   *
+   * Dans un avenant, dupliquer confie une part au prestataire : la nouvelle ligne
+   * démarre à 1 et passe automatiquement en « prestataire » ; si ma ligne de base
+   * est ≥ 2, on lui en retire 1 (le total reste identique). Ailleurs (facture),
+   * simple copie de la ligne.
    */
   protected duplicatePresta(presta: Presta): void {
     const index = this.prestas.indexOf(presta);
-    const copy: Presta = { ...presta, renfortQte: undefined };
-    this.prestas.splice(index + 1, 0, copy);
+    if (this.isAvenant) {
+      const base = Number(presta.qte);
+      if (presta.qte !== '?' && base >= 2) presta.qte = base - 1;
+      const copy: Presta = { ...presta, renfortQte: undefined, renfort: true, qte: 1 };
+      this.prestas.splice(index + 1, 0, copy);
+    } else {
+      const copy: Presta = { ...presta, renfortQte: undefined };
+      this.prestas.splice(index + 1, 0, copy);
+    }
     this.refreshSolde();
   }
 
