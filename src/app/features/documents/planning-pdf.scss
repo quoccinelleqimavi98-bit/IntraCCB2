@@ -169,12 +169,13 @@
 
   .adres {
     border: 1px solid black;
-    width: 250px;
-    padding: 5px 0;
-    margin: 12px 0;
+    width: 190px;
+    padding: 3px 0;
+    margin: 8px 0;
 
     p {
       padding: 0 5px;
+      font-size: 11px;
     }
     p:nth-child(1) {
       font-weight: bold;
@@ -185,7 +186,7 @@
       font-style: italic;
     }
     p:nth-child(2) {
-      padding-top: 5px;
+      padding-top: 3px;
     }
   }
 }
