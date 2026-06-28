@@ -56,30 +56,21 @@ export class DocumentPdf {
     return this.visiblePrestas().filter((p) => !this.isProvider(p));
   }
 
-  protected providerLines(): Presta[] {
-    return this.visiblePrestas().filter((p) => this.isProvider(p));
-  }
-
   /**
-   * Lignes affichées : sur une facture, mes lignes d'abord, puis celles des
-   * prestataires (réglées séparément). Ailleurs, ordre d'origine.
+   * Lignes affichées : sur une facture, UNIQUEMENT mes lignes (le prestataire est
+   * réglé à part, jamais sur ma facture). Sur un devis/avenant, toutes les lignes.
    */
   protected orderedLines(): Presta[] {
-    if (!this.isFacture() || this.providerLines().length === 0) return this.visiblePrestas();
-    return [...this.mineLines(), ...this.providerLines()];
-  }
-
-  /** Indice de la 1re ligne prestataire dans `orderedLines` (pour la séparation). */
-  protected providerStart(): number {
-    return this.mineLines().length;
+    return this.isFacture() ? this.mineLines() : this.visiblePrestas();
   }
 
   protected lineTotal(presta: Presta): number {
     return this.pricing.lineTotal(presta);
   }
 
+  /** Total affiché = somme des lignes affichées (mes lignes sur une facture). */
   protected total(): number {
-    return this.pricing.total(this.prestas());
+    return this.pricing.total(this.orderedLines());
   }
 
   protected arrhes(): number {

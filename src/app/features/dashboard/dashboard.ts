@@ -82,9 +82,6 @@ export class Dashboard {
   protected readonly notPaid = computed(() =>
     this.stats.notPaid(this.entries(), this.year(), this.month()),
   );
-  protected readonly helpers = computed(() =>
-    this.stats.helpers(this.entries(), this.year(), this.month()),
-  );
   protected readonly estimate = computed(() =>
     this.stats.estimate(this.entries(), this.year(), this.month()),
   );

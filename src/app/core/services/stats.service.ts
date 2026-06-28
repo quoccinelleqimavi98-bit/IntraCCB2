@@ -84,16 +84,15 @@ export class StatsService {
   // --- Part journalière (ex-CalcService) ------------------------------------
 
   /**
-   * Ce que je gagne sur une journée = total du devis − paiement prestataires
-   * (figé à la sauvegarde du planning). Modèle homogène : on part toujours du
-   * devis, jamais du planning, et on retranche la part des prestataires.
+   * Ce que je gagne sur une journée = MON total (mes lignes du dernier devis).
+   * Les parts prestataire, réglées à part, n'entrent jamais dans ce calcul.
    */
   mineThisDay(journee: Journee): number {
-    return this.pricing.mine(journee);
+    return this.pricing.myShare(journee);
   }
 
-  /** Montant déjà encaissé sur une journée (factures, hors part prestataires). */
-  alreadyPaidThisDay(journee: Journee, onlyFactures = false): number {
+  /** Montant déjà encaissé sur une journée (mes factures uniquement). */
+  alreadyPaidThisDay(journee: Journee): number {
     let total = 0;
     for (const f of journee.factures) {
       if (f.solde) {
@@ -102,13 +101,6 @@ export class StatsService {
         total += this.prestasPrice(f.prestas, false);
         if (f.realsold && f.realsold !== 0) total = Number(f.realsold);
       }
-    }
-    if (!onlyFactures) {
-      let prov = 0;
-      if (journee.prestataires) prov += Number(journee.prestataires);
-      else
-        for (const f of journee.factures) if (f.paiementPrestas) prov += Number(f.paiementPrestas);
-      total -= prov;
     }
     return Math.floor(total);
   }
@@ -180,11 +172,10 @@ export class StatsService {
 
   /** Reste à encaisser sur la période (par date de journée). */
   notPaid(journees: Journee[], year: number, month: number | null, withDemands = false): number {
-    // Reproduit fidèlement l'ancien site : pour chaque journée chiffrée (hors
-    // clôturées, et — sauf estimation — hors demandes) on prend MA part du jour
-    // (= total du devis débarrassé des renforts) moins ce que les factures ont
-    // déjà soldé. Les contributions négatives (journées déjà sur-encaissées) se
-    // compensent dans la somme, exactement comme avant.
+    // Pour chaque journée chiffrée (hors clôturées, et — sauf estimation — hors
+    // demandes) on prend MON total du jour (mes lignes du dernier devis) moins
+    // ce que mes factures ont déjà soldé. Les contributions négatives (journées
+    // déjà sur-encaissées) se compensent dans la somme.
     let data = journees.filter(
       (j) =>
         this.inPeriod(j.date, year, month) &&
@@ -195,26 +186,13 @@ export class StatsService {
     if (!withDemands) data = data.filter((j) => j.statut !== Statut.Demande);
 
     let total = 0;
-    for (const j of data) total += this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
+    for (const j of data) total += this.mineThisDay(j) - this.alreadyPaidThisDay(j);
     return Math.trunc(total);
   }
 
   /** Vrai si la journée porte un devis chiffré (ou un planning de prestations). */
   private hasQuote(j: Journee): boolean {
     return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
-  }
-
-  /** Total reversé aux prestataires/renforts sur la période (= part figée). */
-  helpers(journees: Journee[], year: number, month: number | null): number {
-    const data = journees.filter(
-      (j) =>
-        this.inPeriod(j.date, year, month) &&
-        j.statut !== Statut.Demande &&
-        j.statut !== Statut.Annule,
-    );
-    let total = 0;
-    for (const j of data) total += this.pricing.providersPaid(j);
-    return Math.trunc(total);
   }
 
   /** Pourboires en argent liquide sur la période (non soumis aux taxes). */
@@ -267,7 +245,7 @@ export class StatsService {
     );
     for (const j of data) {
       if (!this.hasQuote(j)) continue;
-      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j, true);
+      const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j);
       if (reste > 0) {
         lignes.push({
           nom: j.client.nom ?? '',

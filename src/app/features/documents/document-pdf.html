@@ -50,15 +50,6 @@
       <div class="fullligne"></div>
 
       @for (presta of orderedLines(); track $index) {
-        @if (isFacture() && providerLines().length && $index === providerStart()) {
-          <div class="provider-sep">
-            {{
-              fr()
-                ? 'À régler directement au prestataire (facturé séparément par lui)'
-                : 'Payable directly to the provider (billed separately)'
-            }}
-          </div>
-        }
         <div class="table">
           <p>{{ qteLabel(presta) }}</p>
           <p class="textoverflow">{{ nameLabel(presta) }}</p>
@@ -225,12 +216,6 @@
               </p>
             }
           </div>
-          @if (values().paiementPrestas !== 0 && values().paiementPrestas !== '') {
-            <p class="tinytext">
-              {{ fr() ? 'Paiement prestataires' : 'Payment to providers' }} :
-              {{ money(values().paiementPrestas) }}€
-            </p>
-          }
           <p class="tinytext">
             {{ fr() ? 'Mode de paiement' : 'Payment Method' }} : {{ values().modePaiement }}
           </p>

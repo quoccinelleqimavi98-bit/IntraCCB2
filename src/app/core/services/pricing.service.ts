@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { Devis, Facture, Journee, Planning, Presta } from '../models';
+import { Devis, Facture, Journee, Presta } from '../models';
 
 /**
  * Moteur de prix — source unique de toute la logique chiffrée (devis, factures,
@@ -86,61 +86,6 @@ export class PricingService {
     return sum;
   }
 
-  /**
-   * Calcule le paiement prestataires d'après le planning + les frais de
-   * déplacement des renforts (du devis). C'est la valeur figée à la sauvegarde
-   * d'un planning :
-   *   frais de déplacement renfort (devis)
-   * + prestations qui ne sont PAS à moi dans le planning (artiste ≠ 0).
-   */
-  computeProviders(planning: Planning | undefined, devisPrestas: Presta[]): number {
-    let total = 0;
-    for (const presta of devisPrestas) {
-      const nom = presta.nom ?? '';
-      if (nom.includes('renfort') && (presta.kilorly || nom.includes('éplacement'))) {
-        total += this.lineTotal(presta);
-      }
-    }
-    for (const presta of planning?.prestas ?? []) {
-      if (presta.artisteIndex !== 0) total += this.unitPrice(presta);
-    }
-    return Math.floor(total);
-  }
-
-  /**
-   * Part reversée aux prestataires/renforts sur une journée. Valeur FIGÉE à la
-   * sauvegarde du planning (`journee.prestataires`) ; à défaut, recalcul.
-   */
-  providersPaid(journee: Journee): number {
-    if (journee.prestataires != null) return Math.floor(Number(journee.prestataires));
-    return this.computeProviders(journee.planning, journee.devis?.prestas ?? []);
-  }
-
-  /** Part revenant à Cloé = total du devis − paiement prestataires. */
-  mine(journee: Journee): number {
-    return this.total(journee.devis?.prestas ?? []) - this.providersPaid(journee);
-  }
-
-  /**
-   * Sépare les lignes dont une partie est confiée à un prestataire (`renfortQte`,
-   * figé à la sauvegarde du planning) en deux lignes : ma part et la part
-   * prestataire (drapeau `renfort`). Le total est inchangé.
-   */
-  splitProviders(prestas: Presta[]): Presta[] {
-    const out: Presta[] = [];
-    for (const p of prestas) {
-      const done = p.renfortQte ?? 0;
-      if (done > 0 && p.qte !== '?' && !p.kilorly) {
-        const prov = Math.min(done, Number(p.qte));
-        const mine = Number(p.qte) - prov;
-        if (mine > 0) out.push({ ...p, qte: mine, renfort: undefined, renfortQte: undefined });
-        if (prov > 0) out.push({ ...p, qte: prov, renfort: true, renfortQte: undefined });
-      } else {
-        out.push({ ...p });
-      }
-    }
-    return out;
-  }
 
   // --- Modèle « moi uniquement » --------------------------------------------
   // On ne raisonne plus qu'en MES montants. Une éventuelle part prestataire est
