@@ -1,0 +1,51 @@
+From 8e8459720e35ad0bbfa4cfa82c87737a27bd64cf Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 28 Jun 2026 13:39:36 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?style(planning-pdf):=20r=C3=A9duire=20le=20?=
+ =?UTF-8?q?bloc=20domaine?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Bloc adresse du domaine plus compact (largeur 250→190 px, texte 14→11 px,
+marges/paddings réduits).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/features/documents/planning-pdf.scss | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/app/features/documents/planning-pdf.scss b/src/app/features/documents/planning-pdf.scss
+index 43eec25..06f0afe 100644
+--- a/src/app/features/documents/planning-pdf.scss
++++ b/src/app/features/documents/planning-pdf.scss
+@@ -168,12 +168,13 @@
+ 
+   .adres {
+     border: 1px solid black;
+-    width: 250px;
+-    padding: 5px 0;
+-    margin: 12px 0;
++    width: 190px;
++    padding: 3px 0;
++    margin: 8px 0;
+ 
+     p {
+       padding: 0 5px;
++      font-size: 11px;
+     }
+     p:nth-child(1) {
+       font-weight: bold;
+@@ -184,7 +185,7 @@
+       font-style: italic;
+     }
+     p:nth-child(2) {
+-      padding-top: 5px;
++      padding-top: 3px;
+     }
+   }
+ }
+-- 
+2.43.0
+
