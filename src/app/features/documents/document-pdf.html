@@ -28,21 +28,21 @@
       </p>
     }
 
+    <div class="flex between daterow">
+      <p class="tinytext">Date : {{ formatDate(values().date) }}</p>
+      <p class="devis tinytext">
+        @if (mode() === DocumentMode.Devis) {
+          {{ fr() ? 'DEVIS N°' : 'QUOTE N°' }}
+        } @else {
+          {{ fr() ? 'FACTURE N°' : 'INVOICE N°' }}
+        }
+        {{ numero() }}
+      </p>
+    </div>
+
     <div class="ligne"></div>
 
     <div class="content">
-      <div class="flex between daterow">
-        <p class="tinytext">Date : {{ formatDate(values().date) }}</p>
-        <p class="devis tinytext">
-          @if (mode() === DocumentMode.Devis) {
-            {{ fr() ? 'DEVIS N°' : 'QUOTE N°' }}
-          } @else {
-            {{ fr() ? 'FACTURE N°' : 'INVOICE N°' }}
-          }
-          {{ numero() }}
-        </p>
-      </div>
-
       <div class="flex between">
         <div class="cloe">
           <p>{{ emetteur.nom }}</p>

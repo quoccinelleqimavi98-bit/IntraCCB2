@@ -184,7 +184,13 @@
     }
   }
   .prestle {
-    margin-top: 2px;
+    margin-top: -4px;
+  }
+
+  // En-tête : date à gauche / numéro à droite, au-dessus du trait noir.
+  .daterow {
+    padding: 0 15px;
+    margin-top: 4px;
   }
 
   .minitxt {

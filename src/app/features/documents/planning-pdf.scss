@@ -81,7 +81,7 @@
     td {
       border: 1px solid #d8cbe0;
       text-align: center;
-      padding: 2px 2px;
+      padding: 1px 2px;
       word-break: break-word;
     }
 
@@ -102,7 +102,7 @@
     }
 
     tbody td {
-      font-size: 11px;
+      font-size: 10px;
     }
 
     tr.alt td {
@@ -120,7 +120,7 @@
       text-overflow: ellipsis;
     }
     tbody .ptable__person {
-      font-size: 10.5px;
+      font-size: 9.5px;
     }
     thead .ptable__person {
       color: #fff;
@@ -144,6 +144,11 @@
 
   .planfooter {
     margin-top: auto;
+
+    // Bandeau rose du bas plus fin (gain de place).
+    .rosebg {
+      font-size: 12px;
+    }
 
     .cont {
       color: #87528e;
