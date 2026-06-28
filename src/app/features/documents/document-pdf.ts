@@ -56,6 +56,11 @@ export class DocumentPdf {
     return this.visiblePrestas().filter((p) => !this.isProvider(p));
   }
 
+  /** Prestations confiées au prestataire (affichées dans un 2e tableau distinct). */
+  protected providerLines(): Presta[] {
+    return this.visiblePrestas().filter((p) => this.isProvider(p));
+  }
+
   /**
    * Lignes affichées (devis, avenant ET facture) : UNIQUEMENT mes prestations.
    * Les parts confiées à un prestataire ne figurent jamais sur le document

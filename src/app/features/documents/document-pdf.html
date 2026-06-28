@@ -72,6 +72,46 @@
           <p class="bold">Total</p>
           <p class="bold total">{{ money(total()) }}€</p>
         </div>
+
+        @if (providerLines().length > 0) {
+          <div class="provider-block">
+            <p class="provider-title">
+              {{
+                fr()
+                  ? 'Prestations assurées par un(e) prestataire de renfort — facturées et réglées directement auprès de lui/d’elle (non comprises dans le total ci-dessus) :'
+                  : 'Services provided by a support provider — invoiced and paid directly to them (not included in the total above):'
+              }}
+            </p>
+            <div class="table margtop">
+              <p>{{ fr() ? 'Quantité' : 'Quantity' }}</p>
+              <p>Description</p>
+              <p>{{ fr() ? 'Prix Unitaire' : 'Unit Price' }}</p>
+              <p>{{ fr() ? 'Reduction' : 'Discount' }}</p>
+              <p>Total</p>
+            </div>
+            <div class="fullligne"></div>
+            @for (presta of providerLines(); track $index) {
+              <div class="table">
+                <p>{{ qteLabel(presta) }}</p>
+                <p class="textoverflow">{{ nameLabel(presta) }}</p>
+                <p>{{ prixLabel(presta) }}</p>
+                <p>{{ reducLabel(presta) }}</p>
+                @if (lineTotal(presta) > 0) {
+                  <p>{{ money(lineTotal(presta)) }}€</p>
+                } @else {
+                  <p class="green">Offert</p>
+                }
+              </div>
+            }
+            <div class="fullligne"></div>
+            <div class="flex">
+              <p class="tinytext echeance">&nbsp;</p>
+              <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
+              <p class="bold total">{{ money(providerTotal()) }}€</p>
+            </div>
+          </div>
+        }
+
         <div class="flex minitxt">
           <p>{{ fr() ? 'Prestation le' : 'Service' }} : {{ values().datePrestation }}</p>
           <p class="tva">
@@ -83,20 +123,10 @@
           </p>
         </div>
 
-        @if (arrhes() > 0 || providerTotal() > 0) {
-          <div class="flex between">
-            <p class="tinytext bold">
-              @if (arrhes() > 0) {
-                {{ fr() ? 'Montant acompte' : 'Deposit amount' }} : {{ money(arrhes()) }}€
-              }
-            </p>
-            @if (providerTotal() > 0) {
-              <p class="tinytext bold rightalign">
-                {{ fr() ? 'Paiement prestataire' : 'Provider payment' }} :
-                {{ money(providerTotal()) }}€
-              </p>
-            }
-          </div>
+        @if (arrhes() > 0) {
+          <p class="tinytext bold">
+            {{ fr() ? 'Montant acompte' : 'Deposit amount' }} : {{ money(arrhes()) }}€
+          </p>
         }
 
         @if (fr()) {
@@ -137,14 +167,12 @@
                 prévues. Toute prestation supplémentaire devra faire l'objet d'un accord écrit et
                 sera intégrée à la facturation finale. Aucune suppression n'est acceptée.
               </li>
-              @if (providerTotal() > 0) {
-                <li>
-                  <strong>Prestataire de renfort :</strong> pour les réservations de groupe
-                  nécessitant un(e) prestataire de renfort, la signature du présent devis valide et
-                  bloque sa prestation. Celle-ci fera l'objet d'une facturation distincte par le
-                  prestataire, auquel le règlement devra être adressé directement.
-                </li>
-              }
+              <li>
+                <strong>Prestataire de renfort :</strong> pour les réservations de groupe
+                nécessitant un(e) prestataire de renfort, la signature du présent devis valide et
+                bloque sa prestation. Celle-ci fera l'objet d'une facturation distincte par le
+                prestataire, auquel le règlement devra être adressé directement.
+              </li>
             </ul>
           </div>
         } @else {
@@ -185,13 +213,11 @@
                 services. Any additional service requires written approval and will be added to the
                 final invoice. No cancellation of items is accepted.
               </li>
-              @if (providerTotal() > 0) {
-                <li>
-                  <strong>Support provider:</strong> for group bookings requiring a support
-                  provider, signing this quotation validates and secures their service. It will be
-                  invoiced separately by the provider, to whom payment must be made directly.
-                </li>
-              }
+              <li>
+                <strong>Support provider:</strong> for group bookings requiring a support
+                provider, signing this quotation validates and secures their service. It will be
+                invoiced separately by the provider, to whom payment must be made directly.
+              </li>
             </ul>
           </div>
         }

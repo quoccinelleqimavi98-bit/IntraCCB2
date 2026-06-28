@@ -174,6 +174,17 @@
     }
   }
 
+  // 2e tableau « prestataire » (devis/avenant) : prestations gérées par le prestataire.
+  .provider-block {
+    margin-top: 14px;
+  }
+  .provider-title {
+    font-size: 8px !important;
+    font-style: italic;
+    color: #555;
+    margin-bottom: 2px;
+  }
+
   .infos {
     margin-top: 20px;
 
