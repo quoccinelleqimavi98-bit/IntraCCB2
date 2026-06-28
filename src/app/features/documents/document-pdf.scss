@@ -167,6 +167,26 @@
     text-align: right;
   }
 
+  // Pied du devis : la part prestataire + la TVA sont posées en absolu sous le
+  // total (à droite) pour ne pas décaler « Prestation le » ni l'acompte.
+  .devis-foot {
+    position: relative;
+  }
+  .devis-foot__notes {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    text-align: right;
+
+    .tva {
+      font-size: 8px !important;
+      white-space: nowrap;
+    }
+  }
+  .prestle {
+    margin-top: 2px;
+  }
+
   .minitxt {
     position: relative;
     width: 100%;
@@ -250,8 +270,14 @@
     bottom: 0;
     width: 100%;
 
+    // Bandeau rose du bas plus fin (gain de place).
+    .rosebg {
+      font-size: 12px;
+    }
+
     .flex {
       margin: 0 20px;
+      align-items: center; // centre verticalement le « thank you »
     }
     .iban {
       width: 60%;
