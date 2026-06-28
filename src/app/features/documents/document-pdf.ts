@@ -57,24 +57,30 @@ export class DocumentPdf {
   }
 
   /**
-   * Lignes affichées : sur une facture, UNIQUEMENT mes lignes (le prestataire est
-   * réglé à part, jamais sur ma facture). Sur un devis/avenant, toutes les lignes.
+   * Lignes affichées (devis, avenant ET facture) : UNIQUEMENT mes prestations.
+   * Les parts confiées à un prestataire ne figurent jamais sur le document
+   * (elles sont facturées et réglées directement au prestataire).
    */
   protected orderedLines(): Presta[] {
-    return this.isFacture() ? this.mineLines() : this.visiblePrestas();
+    return this.mineLines();
   }
 
   protected lineTotal(presta: Presta): number {
     return this.pricing.lineTotal(presta);
   }
 
-  /** Total affiché = somme des lignes affichées (mes lignes sur une facture). */
+  /** Total affiché = somme de MES prestations (jamais cumulé avec le prestataire). */
   protected total(): number {
     return this.pricing.total(this.orderedLines());
   }
 
+  /** Somme des prestations confiées au prestataire (info, hors de mon total). */
+  protected providerTotal(): number {
+    return this.pricing.providerTotal(this.visiblePrestas());
+  }
+
   protected arrhes(): number {
-    return this.pricing.arrhes(this.prestas(), true);
+    return this.pricing.arrhes(this.mineLines(), true);
   }
 
   protected money(value: number | string): string {
