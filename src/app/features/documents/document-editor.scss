@@ -156,6 +156,31 @@
   }
 }
 
+// Actions par ligne de facture (2e ligne) : bascule Moi/Presta, dupliquer, supprimer.
+.presta-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.presta-act {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &--del:hover {
+    color: #c0392b;
+    border-color: #c0392b;
+  }
+}
+
 .qte {
   display: flex;
   align-items: center;

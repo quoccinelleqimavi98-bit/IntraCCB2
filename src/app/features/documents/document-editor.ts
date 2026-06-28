@@ -333,6 +333,25 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     this.prestas.push({ nom: '', qte: 0, prix: 50, reduc: 0 });
   }
 
+  /**
+   * Duplique une ligne (copie insérée juste en dessous). Permet de répartir un
+   * forfait en plusieurs exemplaires entre ma part et celle d'un prestataire :
+   * ex. forfait ×3 → dupliquer, mettre ×1 (Moi) et ×2 (Presta).
+   */
+  protected duplicatePresta(presta: Presta): void {
+    const index = this.prestas.indexOf(presta);
+    const copy: Presta = { ...presta, renfortQte: undefined };
+    this.prestas.splice(index + 1, 0, copy);
+    this.refreshSolde();
+  }
+
+  /** Supprime une ligne de la facture. */
+  protected removePresta(presta: Presta): void {
+    const index = this.prestas.indexOf(presta);
+    if (index !== -1) this.prestas.splice(index, 1);
+    this.refreshSolde();
+  }
+
   protected deleteAll(): void {
     for (const presta of this.prestas) presta.qte = 0;
     this.refreshSolde();

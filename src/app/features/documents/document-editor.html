@@ -91,19 +91,37 @@
                 />
                 <span class="presta-total">{{ lineLabel(presta) }}</span>
                 @if (!isDevis) {
-                  <button
-                    type="button"
-                    class="presta-renfort-toggle"
-                    [class.active]="isRenfort(presta)"
-                    (click)="toggleRenfort(presta)"
-                    [title]="
-                      isRenfort(presta)
-                        ? 'Part prestataire — cliquer pour me l’attribuer'
-                        : 'Ma part — cliquer pour l’attribuer au prestataire'
-                    "
-                  >
-                    {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
-                  </button>
+                  <div class="presta-actions">
+                    <button
+                      type="button"
+                      class="presta-renfort-toggle"
+                      [class.active]="isRenfort(presta)"
+                      (click)="toggleRenfort(presta)"
+                      [title]="
+                        isRenfort(presta)
+                          ? 'Part prestataire — cliquer pour me l’attribuer'
+                          : 'Ma part — cliquer pour l’attribuer au prestataire'
+                      "
+                    >
+                      {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="presta-act"
+                      (click)="duplicatePresta(presta)"
+                      title="Dupliquer cette ligne"
+                    >
+                      Dupliquer
+                    </button>
+                    <button
+                      type="button"
+                      class="presta-act presta-act--del"
+                      (click)="removePresta(presta)"
+                      title="Supprimer cette ligne"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
                 }
               </div>
             }
