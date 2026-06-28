@@ -219,10 +219,7 @@
               <span>Qté</span><span>Prestation</span><span>Réduc</span><span>Total</span>
             </div>
             @for (presta of recapLines(); track $index) {
-              @if ($index === recapProviderStart()) {
-                <div class="resume__presta-sep">À régler au prestataire</div>
-              }
-              <div class="resume__row" [class.resume__row--renfort]="isProvider(presta)">
+              <div class="resume__row">
                 <span>{{ presta.qte }}</span>
                 <span class="resume__name">{{ presta.nom }}</span>
                 <span>{{ presta.reduc ? presta.reduc + '%' : '' }}</span>
@@ -240,13 +237,13 @@
             <div>
               <span>Reste à payer</span><strong>{{ money(resteAPayer()) }}€</strong>
             </div>
-            <div class="resume__sep"></div>
-            <div class="resume__small">
-              <span>Prestataires</span><strong>{{ money(providersPaid()) }}€</strong>
-            </div>
-            <div class="resume__small">
-              <span>Moi</span><strong>{{ money(mine()) }}€</strong>
-            </div>
+            @if (hasProvider()) {
+              <div class="resume__sep"></div>
+              <div class="resume__small">
+                <span>Prestataire (réglé à part)</span
+                ><strong>{{ money(providerShare()) }}€</strong>
+              </div>
+            }
             @if (cash() > 0) {
               <div class="resume__small resume__cash-line">
                 <span>Argent liquide (pourboire)</span><strong>{{ money(cash()) }}€</strong>

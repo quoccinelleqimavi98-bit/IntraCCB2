@@ -125,6 +125,25 @@ function devisToDto(devis: Devis): DevisDto {
   };
 }
 
+/**
+ * Liste des devis depuis le DTO. La liste complète est rangée dans `versions`
+ * (au sein du dernier devis) ; à défaut (données anciennes) le devis unique
+ * devient une liste à un élément. Liste vide si aucun devis réel.
+ */
+function devisListFromDto(dto: DevisDto | undefined): Devis[] {
+  if (!dto) return [];
+  if (dto.versions?.length) return dto.versions.map(devisToDomain);
+  if (dto.creation || (dto.prestas?.length ?? 0) > 0) return [devisToDomain(dto)];
+  return [];
+}
+
+/** Sérialise la liste des devis DANS le dernier devis (clé `versions`). */
+function devisListToDto(list: Devis[] | undefined): DevisDto {
+  if (!list?.length) return {};
+  const last = list[list.length - 1];
+  return { ...devisToDto(last), versions: list.map(devisToDto) };
+}
+
 function factureToDomain(dto: FactureDto): Facture {
   return {
     numero: toOptionalNumber(dto.numero),
@@ -263,6 +282,7 @@ function planningToDto(p: Planning): PlanningDto {
 
 /** Convertit le DTO renvoyé par l'API en modèle de domaine. */
 export function journeeToDomain(dto: JourneeDto): Journee {
+  const devisList = devisListFromDto(dto.devis);
   return {
     id: dto.id,
     date: dto.date,
@@ -277,7 +297,8 @@ export function journeeToDomain(dto: JourneeDto): Journee {
     },
     essai: essaiToDomain(dto.essai),
     mariage: mariageToDomain(dto.mariage),
-    devis: dto.devis ? devisToDomain(dto.devis) : undefined,
+    devis: devisList.length ? devisList[devisList.length - 1] : undefined,
+    devisList: devisList.length ? devisList : undefined,
     factures: (dto.factures ?? []).map(factureToDomain),
     planning: dto.planning ? planningToDomain(dto.planning) : undefined,
     mariagenet: dto.mariagenet,
@@ -294,7 +315,7 @@ export function journeeToDto(j: Journee): JourneeDto {
     statut: j.statut,
     etape: j.etape,
     factures: j.factures.map(factureToDto),
-    devis: j.devis ? devisToDto(j.devis) : {},
+    devis: devisListToDto(j.devisList?.length ? j.devisList : j.devis ? [j.devis] : []),
     planning: j.planning ? planningToDto(j.planning) : {},
     essai: { ...j.essai },
     mariage: { ...j.mariage },

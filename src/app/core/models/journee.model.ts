@@ -23,7 +23,15 @@ export interface Journee {
   essai: Essai;
   mariage: Mariage;
 
+  /** Dernier devis (= base des calculs). Toujours `devisList[devisList.length - 1]`. */
   devis?: Devis;
+  /**
+   * Liste ordonnée des devis : le devis initial puis ses avenants. Le dernier
+   * fait foi pour le récap, la facture et le planning. Sérialisé dans la colonne
+   * `devis` du backend via `{ ...dernier, versions: [...] }` (aucun changement
+   * serveur). Les données anciennes (un seul devis) sont lues comme liste à un.
+   */
+  devisList?: Devis[];
   factures: Facture[];
   planning?: Planning;
 

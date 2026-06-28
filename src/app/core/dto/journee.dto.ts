@@ -41,6 +41,12 @@ export interface DevisDto {
   creation?: string;
   echeance?: string;
   prestas?: PrestaDto[];
+  /**
+   * Liste complète des devis (initial + avenants) rangée DANS le dernier devis,
+   * pour survivre au backend (la colonne `devis` ne stocke qu'un objet). Absent
+   * sur les données anciennes → un seul devis.
+   */
+  versions?: DevisDto[];
 }
 
 export interface FactureDto {

@@ -139,48 +139,35 @@ export class JourneeDetail {
   }
 
   protected get devisPrestas(): Presta[] {
-    return this.data.devis?.prestas ?? [];
+    return this.pricing.lastDevis(this.data)?.prestas ?? [];
   }
 
   protected lineLabel(presta: Presta): string {
     return this.pricing.lineLabel(presta);
   }
 
-  /** Vrai si la ligne est une part prestataire (drapeau ou intitulé). */
-  protected isProvider(presta: Presta): boolean {
-    return presta.renfort === true || (presta.nom ?? '').includes('renfort');
-  }
-
-  /** Lignes du récap : mes prestations d'abord, puis les parts prestataires. */
+  /** Lignes du récap : uniquement MES prestations (le prestataire est résumé en une ligne). */
   protected recapLines(): Presta[] {
-    const split = this.pricing.splitProviders(this.devisPrestas);
-    return [...split.filter((p) => !this.isProvider(p)), ...split.filter((p) => this.isProvider(p))];
+    return this.pricing.myPrestas(this.devisPrestas);
   }
 
-  /** Indice de la 1re ligne prestataire dans `recapLines` (−1 si aucune). */
-  protected recapProviderStart(): number {
-    const count = this.recapLines().filter((p) => this.isProvider(p)).length;
-    return count > 0 ? this.recapLines().length - count : -1;
-  }
-
+  /** Mon total = somme de mes lignes du dernier devis (jamais cumulé avec le prestataire). */
   protected total(): number {
-    return this.pricing.total(this.devisPrestas);
-  }
-
-  protected arrhes(): number {
-    return this.pricing.arrhes(this.devisPrestas);
+    return this.pricing.myTotal(this.devisPrestas);
   }
 
   protected paid(): number {
     return this.pricing.paid(this.data);
   }
 
-  protected providersPaid(): number {
-    return this.pricing.providersPaid(this.data);
+  /** Un prestataire intervient (≥ 1 ligne non à moi dans le dernier devis). */
+  protected hasProvider(): boolean {
+    return this.pricing.hasProvider(this.devisPrestas);
   }
 
-  protected mine(): number {
-    return this.pricing.mine(this.data);
+  /** Montant informatif revenant au prestataire (jamais dans mes calculs). */
+  protected providerShare(): number {
+    return this.pricing.providerTotal(this.devisPrestas);
   }
 
   /** Pourboire (argent liquide) saisi sur la fiche, en nombre. */
@@ -188,7 +175,7 @@ export class JourneeDetail {
     return Number(this.data.argentLiquide) || 0;
   }
 
-  /** Reste à payer pour le client = total du devis − déjà payé. */
+  /** Reste à payer = mon total − déjà payé. */
   protected resteAPayer(): number {
     return this.total() - this.paid();
   }

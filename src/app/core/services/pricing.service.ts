@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { Facture, Journee, Planning, Presta } from '../models';
+import { Devis, Facture, Journee, Planning, Presta } from '../models';
 
 /**
  * Moteur de prix — source unique de toute la logique chiffrée (devis, factures,
@@ -140,5 +140,46 @@ export class PricingService {
       }
     }
     return out;
+  }
+
+  // --- Modèle « moi uniquement » --------------------------------------------
+  // On ne raisonne plus qu'en MES montants. Une éventuelle part prestataire est
+  // purement informative et n'entre JAMAIS dans mes totaux.
+
+  /** Dernier devis = base de tous les calculs (récap, facture, planning). */
+  lastDevis(journee: Journee): Devis | undefined {
+    const list = journee.devisList;
+    if (list && list.length) return list[list.length - 1];
+    return journee.devis;
+  }
+
+  /** Une ligne est confiée à un prestataire (drapeau renfort ou intitulé). */
+  isProvider(presta: Presta): boolean {
+    return presta.renfort === true || (presta.nom ?? '').includes('renfort');
+  }
+
+  /** Mes lignes (hors prestataire). */
+  myPrestas(prestas: Presta[]): Presta[] {
+    return prestas.filter((p) => !this.isProvider(p));
+  }
+
+  /** Au moins une prestation est confiée à un prestataire. */
+  hasProvider(prestas: Presta[]): boolean {
+    return prestas.some((p) => this.isProvider(p));
+  }
+
+  /** Mon total = somme de MES lignes uniquement. */
+  myTotal(prestas: Presta[]): number {
+    return this.total(this.myPrestas(prestas));
+  }
+
+  /** Montant informatif revenant au prestataire (jamais dans mes calculs). */
+  providerTotal(prestas: Presta[]): number {
+    return this.total(prestas.filter((p) => this.isProvider(p)));
+  }
+
+  /** Mon total pour la journée = total de mes lignes du dernier devis. */
+  myShare(journee: Journee): number {
+    return this.myTotal(this.lastDevis(journee)?.prestas ?? []);
   }
 }
