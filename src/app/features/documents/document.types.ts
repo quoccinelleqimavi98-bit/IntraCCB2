@@ -22,4 +22,9 @@ export interface DocumentRequest {
   mode: DocumentKind;
   /** Index de la facture à éditer (-1 = nouvelle). Ignoré pour le devis. */
   factureIndex: number;
+  /**
+   * Index du devis à éditer dans `devisList` (-1 = nouveau devis/avenant).
+   * Ignoré pour la facture.
+   */
+  devisIndex?: number;
 }

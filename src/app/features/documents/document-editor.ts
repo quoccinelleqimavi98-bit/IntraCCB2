@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 
 import {
   CatalogItem,
+  Devis,
   DocumentMode,
   Etape,
   Facture,
@@ -59,6 +60,8 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   readonly journee = input.required<Journee>();
   readonly mode = input.required<DocumentKind>();
   readonly factureIndex = input(-1);
+  /** Index du devis à éditer dans `devisList` (-1 = nouveau devis ou avenant). */
+  readonly devisIndex = input(-1);
   readonly catalog = input<CatalogItem[]>([]);
   readonly nextDevis = input(1);
   readonly nextFacture = input(1);
@@ -136,12 +139,12 @@ export class DocumentEditor implements OnInit, AfterViewInit {
       paiementPrestas: 0,
     };
 
-    if (this.isDevis) this.initDevis(data);
+    if (this.isDevis) this.initDevis();
     else this.initFacture(data);
 
-    // Aperçu par défaut, sauf à la toute première création d'un devis.
-    const firstDevis = this.isDevis && !data.devis?.creation;
-    this.viewMode.set(firstDevis ? 'form' : 'preview');
+    // Aperçu par défaut ; édition à la création d'un devis/avenant.
+    const newDevis = this.isDevis && this.devisIndex() === -1;
+    this.viewMode.set(newDevis ? 'form' : 'preview');
 
     this.snapshot = this.fingerprint();
   }
@@ -174,19 +177,49 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     return this.mode() === DocumentMode.Devis;
   }
 
+  /** Liste des devis de la journée (initial puis avenants). */
+  private get devisList(): Devis[] {
+    const j = this.journee();
+    if (j.devisList && j.devisList.length) return j.devisList;
+    return j.devis ? [j.devis] : [];
+  }
+
+  /**
+   * Vrai si ce devis est un avenant (et non le devis initial) : c'est le seul
+   * cas où l'on gère un prestataire (bascule Moi/Presta, duplication…). Édition :
+   * avenant si index ≥ 1. Création (index −1) : avenant s'il existe déjà un devis.
+   */
+  protected get isAvenant(): boolean {
+    if (!this.isDevis) return false;
+    const idx = this.devisIndex();
+    return idx >= 0 ? idx >= 1 : this.devisList.length >= 1;
+  }
+
   protected get canAddDevisPrestas(): boolean {
     return !this.isDevis && this.journee().factures.length > 0;
   }
 
   // --- Construction de l'état -----------------------------------------------
 
-  private initDevis(data: Journee): void {
-    const devis = data.devis;
-    for (const presta of devis?.prestas ?? []) this.mergePresta(presta);
-    if (devis?.creation) this.values.date = devis.creation;
-    if (devis?.numero !== undefined) this.values.numero = devis.numero;
-    if (devis?.annee) this.values.annee = devis.annee;
-    if (devis?.echeance) this.values.echeance = devis.echeance;
+  private initDevis(): void {
+    const idx = this.devisIndex();
+    const list = this.devisList;
+
+    if (idx >= 0 && idx < list.length) {
+      // Édition d'un devis existant : on charge ses lignes et son en-tête.
+      const devis = list[idx];
+      for (const presta of devis.prestas ?? []) this.mergePresta(presta);
+      if (devis.creation) this.values.date = devis.creation;
+      if (devis.numero !== undefined) this.values.numero = devis.numero;
+      if (devis.annee) this.values.annee = devis.annee;
+      if (devis.echeance) this.values.echeance = devis.echeance;
+    } else if (this.isAvenant) {
+      // Nouvel avenant : pré-rempli avec les prestations du DERNIER devis, mais
+      // avec un nouveau numéro / une nouvelle date (déjà dans `values`).
+      const source = list[list.length - 1];
+      for (const presta of source?.prestas ?? []) this.mergePresta(presta);
+    }
+    // Sinon : tout premier devis (initial) — on part du catalogue vierge.
   }
 
   private initFacture(data: Journee): void {
@@ -375,6 +408,16 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     return this.pricing.total(this.prestas);
   }
 
+  /** Mon total (avenant) = somme de mes lignes, hors prestataire. */
+  protected myTotal(): number {
+    return this.pricing.myTotal(this.prestas);
+  }
+
+  /** Montant informatif revenant au prestataire (avenant). */
+  protected providerTotal(): number {
+    return this.pricing.providerTotal(this.prestas);
+  }
+
   protected lineLabel(presta: Presta): string {
     return this.pricing.lineLabel(presta);
   }
@@ -390,13 +433,19 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     const kept = this.prestas.filter((p) => p.qte === '?' || Number(p.qte) > 0);
 
     if (this.isDevis) {
-      data.devis = {
+      const newDevis: Devis = {
         prestas: kept,
         creation: this.values.date,
         numero: Number(this.values.numero),
         annee: this.values.annee,
         echeance: this.values.echeance,
       };
+      const list = this.devisList.slice();
+      const idx = this.devisIndex();
+      if (idx >= 0 && idx < list.length) list[idx] = newDevis; // édition d'un devis existant
+      else list.push(newDevis); // nouveau (devis initial ou avenant)
+      data.devisList = list;
+      data.devis = list[list.length - 1]; // le dernier devis fait foi
       if (data.etape === Etape.Devis) data.etape = Etape.Arrhes;
     } else {
       const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;

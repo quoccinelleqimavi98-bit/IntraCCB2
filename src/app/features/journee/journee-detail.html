@@ -150,15 +150,22 @@
       <section class="card section">
         <h3 class="section__title">Documents</h3>
         <div class="docs">
-          <div class="docs__row">
+          <div class="docs__row docs__row--top">
             <span class="docs__label">Devis</span>
-            <button class="btn btn--ghost btn--sm" (click)="openDevis()">
-              {{
-                hasDevis
-                  ? formatNum(data.devis?.numero) + '-' + data.devis?.annee
-                  : 'Créer un devis'
-              }}
-            </button>
+            @if (hasDevis) {
+              <div class="docs__factures">
+                @for (devis of devisList(); track $index) {
+                  <button class="btn btn--ghost btn--sm" (click)="openDevisAt($index)">
+                    {{ $index === 0 ? 'Devis' : 'Avenant' }} {{ formatNum(devis.numero) }}-{{
+                      devis.annee
+                    }}
+                  </button>
+                }
+                <button class="btn btn--subtle btn--sm" (click)="openDevisAt(-1)">+ Avenant</button>
+              </div>
+            } @else {
+              <button class="btn btn--ghost btn--sm" (click)="openDevisAt(-1)">Créer un devis</button>
+            }
           </div>
 
           @if (hasDevis) {

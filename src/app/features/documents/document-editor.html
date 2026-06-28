@@ -90,7 +90,7 @@
                   placeholder="%"
                 />
                 <span class="presta-total">{{ lineLabel(presta) }}</span>
-                @if (!isDevis) {
+                @if (!isDevis || isAvenant) {
                   <div class="presta-actions">
                     <button
                       type="button"
@@ -185,7 +185,14 @@
       }
 
       <div class="editor__total">
-        Total : <span class="glow">{{ money(total()) }}€</span>
+        @if (isAvenant) {
+          Mon total : <span class="glow">{{ money(myTotal()) }}€</span>
+          @if (providerTotal() > 0) {
+            <span class="editor__provider">· Prestataire : {{ money(providerTotal()) }}€</span>
+          }
+        } @else {
+          Total : <span class="glow">{{ money(total()) }}€</span>
+        }
       </div>
     </div>
 

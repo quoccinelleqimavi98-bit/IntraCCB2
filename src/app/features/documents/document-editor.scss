@@ -228,6 +228,13 @@
   font-weight: 600;
 }
 
+// Montant prestataire (avenant) : discret, jamais cumulé avec mon total.
+.editor__provider {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 // --- Aperçu PDF ------------------------------------------------------------
 
 .editor__preview {

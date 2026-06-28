@@ -1,7 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { DocumentMode, Domaine, Etape, Facture, Journee, Presta, Statut } from '../../core/models';
+import {
+  Devis,
+  DocumentMode,
+  Domaine,
+  Etape,
+  Facture,
+  Journee,
+  Presta,
+  Statut,
+} from '../../core/models';
 import { PlanningStore } from '../../core/services/planning-store.service';
 import { PricingService } from '../../core/services/pricing.service';
 import { addDaysFr, maskFrDateInput, todayFrDate } from '../../core/utils/date.utils';
@@ -207,16 +216,24 @@ export class JourneeDetail {
     }
   }
 
-  protected openDevis(): void {
-    this.openDocument.emit({ mode: DocumentMode.Devis, factureIndex: -1 });
+  /** Liste des devis de la journée (initial puis avenants). */
+  protected devisList(): Devis[] {
+    const list = this.data.devisList;
+    if (list && list.length) return list;
+    return this.data.devis ? [this.data.devis] : [];
+  }
+
+  /** Ouvre le devis d'index donné (-1 = nouveau devis ou avenant). */
+  protected openDevisAt(index: number): void {
+    this.openDocument.emit({ mode: DocumentMode.Devis, factureIndex: -1, devisIndex: index });
   }
 
   protected openFacture(index: number): void {
-    this.openDocument.emit({ mode: DocumentMode.Facture, factureIndex: index });
+    this.openDocument.emit({ mode: DocumentMode.Facture, factureIndex: index, devisIndex: -1 });
   }
 
   protected clickEtape(): void {
-    if (this.data.etape === Etape.Devis) this.openDevis();
+    if (this.data.etape === Etape.Devis) this.openDevisAt(-1);
     else this.openFacture(-1);
   }
 
