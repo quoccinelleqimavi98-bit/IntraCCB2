@@ -10,6 +10,24 @@
       }
     </p>
 
+    @if (mode() === DocumentMode.Devis && replaces(); as r) {
+      <p class="replaces">
+        {{
+          fr()
+            ? 'Le présent document annule et remplace le devis n° ' +
+              r.numero +
+              ' édité le ' +
+              r.date +
+              '.'
+            : 'This document cancels and replaces quote no. ' +
+              r.numero +
+              ' issued on ' +
+              r.date +
+              '.'
+        }}
+      </p>
+    }
+
     <p class="date">Date : {{ formatDate(values().date) }}</p>
     <div class="ligne"></div>
 
@@ -83,11 +101,10 @@
         </div>
 
         @if (providerLines().length > 0) {
-          <div class="flex">
-            <p class="tinytext echeance">&nbsp;</p>
-            <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
-            <p class="bold total">{{ money(providerTotal()) }}€</p>
-          </div>
+          <p class="provider-total">
+            {{ fr() ? 'dont part prestataire (réglée directement à lui/elle)' : 'of which provider share (paid directly to them)' }}
+            : {{ money(providerTotal()) }}€
+          </p>
         }
 
         <div class="flex minitxt">
@@ -227,23 +244,33 @@
         </div>
 
         <div class="resume">
-          <div class="flex between">
-            @if (values().acompte !== '') {
-              <p class="tinytext">
-                {{ fr() ? 'Déjà versé' : 'Already Paid' }} : {{ money(values().acompte) }}€
-              </p>
-            }
-            @if (values().acompte !== '' || values().solde !== '') {
-              <p class="tinytext bold rightalign">
-                {{ fr() ? 'Reste à payer' : 'Remaining balance' }} : {{ remaining() }}€
-              </p>
-            }
-            @if (acquittee()) {
-              <p class="tinytext bold rightalign2">
-                {{ fr() ? 'Facture acquittée le : ' : 'Invoice paid on : '
-                }}{{ formatDate(values().date) }}
-              </p>
-            }
+          <div class="flex between paiements-row">
+            <div class="paiements">
+              @if (priorPayments().length > 0) {
+                @for (p of priorPayments(); track $index) {
+                  <p class="tinytext">
+                    {{ fr() ? 'Versé le' : 'Paid on' }} {{ p.date }} : {{ money(p.montant) }}€
+                  </p>
+                }
+              } @else if (values().acompte !== '') {
+                <p class="tinytext">
+                  {{ fr() ? 'Déjà versé' : 'Already Paid' }} : {{ money(values().acompte) }}€
+                </p>
+              }
+            </div>
+            <div class="paiements-right">
+              @if (values().acompte !== '' || values().solde !== '') {
+                <p class="tinytext bold rightalign">
+                  {{ fr() ? 'Reste à payer' : 'Remaining balance' }} : {{ remaining() }}€
+                </p>
+              }
+              @if (acquittee()) {
+                <p class="tinytext bold rightalign2">
+                  {{ fr() ? 'Facture acquittée le : ' : 'Invoice paid on : '
+                  }}{{ formatDate(values().date) }}
+                </p>
+              }
+            </div>
           </div>
           <p class="tinytext">
             {{ fr() ? 'Mode de paiement' : 'Payment Method' }} : {{ values().modePaiement }}

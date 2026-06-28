@@ -30,6 +30,10 @@ export class DocumentPdf {
   readonly values = input.required<DocumentValues>();
   readonly modedevis = input<'Mariage' | 'Autre'>('Mariage');
   readonly acquittee = input(false);
+  /** Devis remplacé par un avenant (numéro formaté + date), sinon null. */
+  readonly replaces = input<{ numero: string; date: string } | null>(null);
+  /** Paiements déjà effectués (factures antérieures) : date + montant. */
+  readonly priorPayments = input<{ date: string; montant: number }[]>([]);
 
   protected readonly emetteur = EMETTEUR;
   protected readonly bank = BANK;

@@ -413,6 +413,35 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     return this.pricing.lineLabel(presta);
   }
 
+  /**
+   * Devis remplacé par cet avenant = celui qui précède dans la liste (création
+   * d'un avenant → le dernier existant). `null` pour le devis initial.
+   */
+  protected replacedDevis(): { numero: string; date: string } | null {
+    if (!this.isDevis) return null;
+    const list = this.devisList;
+    const idx = this.devisIndex();
+    const prevIndex = idx === -1 ? list.length - 1 : idx - 1;
+    if (prevIndex < 0 || prevIndex >= list.length) return null;
+    const prev = list[prevIndex];
+    const numero = String(prev.numero ?? '').padStart(3, '0') + '-' + (prev.annee ?? '');
+    return { numero, date: prev.creation ?? '' };
+  }
+
+  /** Paiements déjà effectués (factures antérieures à celle-ci) : date + montant. */
+  protected priorPayments(): { date: string; montant: number }[] {
+    if (this.isDevis) return [];
+    const data = this.journee();
+    const idx = this.factureIndex();
+    const end = idx === -1 ? data.factures.length : idx;
+    const out: { date: string; montant: number }[] = [];
+    for (let i = 0; i < end; i++) {
+      const f = data.factures[i];
+      out.push({ date: f.creation ?? '', montant: this.factureContribution(f) });
+    }
+    return out;
+  }
+
   protected money(value: number | string): string {
     return formatAmount(value);
   }

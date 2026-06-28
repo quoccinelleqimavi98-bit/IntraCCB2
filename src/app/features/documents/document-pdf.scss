@@ -87,6 +87,15 @@
     font-size: 15px;
   }
 
+  // Avenant : « annule et remplace le devis n°… », entre le bandeau et la date.
+  .replaces {
+    text-align: center;
+    font-size: 9px;
+    font-style: italic;
+    color: #87528e;
+    margin-top: 2px;
+  }
+
   .ligne {
     border-bottom: 1px solid black;
     width: 90%;
@@ -206,6 +215,24 @@
     position: absolute;
     right: 0;
     top: 40px;
+  }
+
+  // Part prestataire : info secondaire très discrète (mon total reste l'essentiel).
+  .provider-total {
+    text-align: right;
+    font-size: 8px !important;
+    font-style: italic;
+    color: #aaa;
+    margin-top: 1px;
+  }
+
+  // Liste des paiements déjà effectués (facture), à gauche ; le bloc « reste à
+  // payer » est positionné en absolu à droite et n'est donc jamais décalé.
+  .paiements-row {
+    align-items: flex-start;
+  }
+  .paiements p {
+    margin: 0;
   }
 
   .iban p {
