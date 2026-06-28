@@ -1,0 +1,160 @@
+From 4d6dabe474992f55a7a46b2690786e1effdab037 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 28 Jun 2026 10:44:53 +0000
+Subject: [PATCH] feat(pdf): fusionner mes prestations et celles du prestataire
+ en un tableau
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Un seul tableau sur le devis/avenant : mes prestations, puis une ligne de
+séparation portant la mention « gérées et facturées directement par le
+prestataire », puis les prestations du prestataire. Les totaux sont empilés :
+mon total, puis « Total prestataire » juste en dessous. Mon total reste la somme
+de mes seules prestations (jamais cumulé).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/features/documents/document-pdf.html | 48 ++++++--------------
+ src/app/features/documents/document-pdf.scss | 13 +-----
+ src/app/features/documents/document-pdf.ts   | 17 ++++---
+ 3 files changed, 25 insertions(+), 53 deletions(-)
+
+diff --git a/src/app/features/documents/document-pdf.html b/src/app/features/documents/document-pdf.html
+index 66bd70a..30e3f76 100644
+--- a/src/app/features/documents/document-pdf.html
++++ b/src/app/features/documents/document-pdf.html
+@@ -50,6 +50,15 @@
+       <div class="fullligne"></div>
+ 
+       @for (presta of orderedLines(); track $index) {
++        @if (providerLines().length && $index === providerStart()) {
++          <div class="provider-sep">
++            {{
++              fr()
++                ? 'Prestations assurées par un(e) prestataire de renfort — facturées et réglées directement auprès de lui/d’elle (non comprises dans mon total) :'
++                : 'Services provided by a support provider — invoiced and paid directly to them (not included in my total):'
++            }}
++          </div>
++        }
+         <div class="table">
+           <p>{{ qteLabel(presta) }}</p>
+           <p class="textoverflow">{{ nameLabel(presta) }}</p>
+@@ -74,41 +83,10 @@
+         </div>
+ 
+         @if (providerLines().length > 0) {
+-          <div class="provider-block">
+-            <p class="provider-title">
+-              {{
+-                fr()
+-                  ? 'Prestations assurées par un(e) prestataire de renfort — facturées et réglées directement auprès de lui/d’elle (non comprises dans le total ci-dessus) :'
+-                  : 'Services provided by a support provider — invoiced and paid directly to them (not included in the total above):'
+-              }}
+-            </p>
+-            <div class="table margtop">
+-              <p>{{ fr() ? 'Quantité' : 'Quantity' }}</p>
+-              <p>Description</p>
+-              <p>{{ fr() ? 'Prix Unitaire' : 'Unit Price' }}</p>
+-              <p>{{ fr() ? 'Reduction' : 'Discount' }}</p>
+-              <p>Total</p>
+-            </div>
+-            <div class="fullligne"></div>
+-            @for (presta of providerLines(); track $index) {
+-              <div class="table">
+-                <p>{{ qteLabel(presta) }}</p>
+-                <p class="textoverflow">{{ nameLabel(presta) }}</p>
+-                <p>{{ prixLabel(presta) }}</p>
+-                <p>{{ reducLabel(presta) }}</p>
+-                @if (lineTotal(presta) > 0) {
+-                  <p>{{ money(lineTotal(presta)) }}€</p>
+-                } @else {
+-                  <p class="green">Offert</p>
+-                }
+-              </div>
+-            }
+-            <div class="fullligne"></div>
+-            <div class="flex">
+-              <p class="tinytext echeance">&nbsp;</p>
+-              <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
+-              <p class="bold total">{{ money(providerTotal()) }}€</p>
+-            </div>
++          <div class="flex">
++            <p class="tinytext echeance">&nbsp;</p>
++            <p class="bold">{{ fr() ? 'Total prestataire' : 'Provider total' }}</p>
++            <p class="bold total">{{ money(providerTotal()) }}€</p>
+           </div>
+         }
+ 
+diff --git a/src/app/features/documents/document-pdf.scss b/src/app/features/documents/document-pdf.scss
+index dafa1dc..cc618cf 100644
+--- a/src/app/features/documents/document-pdf.scss
++++ b/src/app/features/documents/document-pdf.scss
+@@ -104,7 +104,7 @@
+     border-top: 1px dashed #999;
+     margin-top: 6px;
+     padding-top: 4px;
+-    font-size: 12px;
++    font-size: 8px;
+     font-style: italic;
+     color: #87528e;
+   }
+@@ -174,17 +174,6 @@
+     }
+   }
+ 
+-  // 2e tableau « prestataire » (devis/avenant) : prestations gérées par le prestataire.
+-  .provider-block {
+-    margin-top: 14px;
+-  }
+-  .provider-title {
+-    font-size: 8px !important;
+-    font-style: italic;
+-    color: #555;
+-    margin-bottom: 2px;
+-  }
+-
+   .infos {
+     margin-top: 20px;
+ 
+diff --git a/src/app/features/documents/document-pdf.ts b/src/app/features/documents/document-pdf.ts
+index f84d7a8..f7585b0 100644
+--- a/src/app/features/documents/document-pdf.ts
++++ b/src/app/features/documents/document-pdf.ts
+@@ -62,21 +62,26 @@ export class DocumentPdf {
+   }
+ 
+   /**
+-   * Lignes affichées (devis, avenant ET facture) : UNIQUEMENT mes prestations.
+-   * Les parts confiées à un prestataire ne figurent jamais sur le document
+-   * (elles sont facturées et réglées directement au prestataire).
++   * Lignes du tableau : sur une facture, uniquement les miennes. Sur un
++   * devis/avenant, les miennes PUIS celles du prestataire, dans un seul tableau
++   * séparé par la mention dédiée (voir `providerStart`).
+    */
+   protected orderedLines(): Presta[] {
+-    return this.mineLines();
++    return this.isFacture() ? this.mineLines() : [...this.mineLines(), ...this.providerLines()];
++  }
++
++  /** Indice de la 1re ligne prestataire dans `orderedLines` (pour la séparation). */
++  protected providerStart(): number {
++    return this.mineLines().length;
+   }
+ 
+   protected lineTotal(presta: Presta): number {
+     return this.pricing.lineTotal(presta);
+   }
+ 
+-  /** Total affiché = somme de MES prestations (jamais cumulé avec le prestataire). */
++  /** Mon total = somme de MES prestations uniquement (jamais le prestataire). */
+   protected total(): number {
+-    return this.pricing.total(this.orderedLines());
++    return this.pricing.total(this.mineLines());
+   }
+ 
+   /** Somme des prestations confiées au prestataire (info, hors de mon total). */
+-- 
+2.43.0
+
