@@ -329,14 +329,14 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   }
 
   /**
-   * Recalcule le solde = mon total − déjà versé. La facture ne porte que mes
-   * prestations ; il n'y a plus de paiement prestataires. Appelé à chaque
-   * modification d'une ligne.
+   * Recalcule le solde = MON total (somme de mes prestations) − tout ce qui a
+   * déjà été payé (= acompte, somme des soldes des factures antérieures).
+   * Appelé à chaque modification d'une ligne (quantité, prix, réduction).
    */
   protected refreshSolde(): void {
     if (this.isDevis) return;
     const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
-    this.values.solde = this.total() - acompte;
+    this.values.solde = this.pricing.myTotal(this.prestas) - acompte;
   }
 
   protected canDecrement(presta: Presta): boolean {
@@ -350,14 +350,14 @@ export class DocumentEditor implements OnInit, AfterViewInit {
   /**
    * Duplique une ligne (copie insérée juste en dessous).
    *
-   * Dans un avenant, dupliquer confie une part au prestataire : la nouvelle ligne
-   * démarre à 1 et passe automatiquement en « prestataire » ; si ma ligne de base
-   * est ≥ 2, on lui en retire 1 (le total reste identique). Ailleurs (facture),
-   * simple copie de la ligne.
+   * Sur un devis (initial OU avenant), dupliquer confie une part au prestataire :
+   * la nouvelle ligne démarre à 1 et passe automatiquement en « prestataire » ; si
+   * ma ligne de base est ≥ 2, on lui en retire 1 (le total reste identique).
+   * Sur une facture, simple copie de la ligne.
    */
   protected duplicatePresta(presta: Presta): void {
     const index = this.prestas.indexOf(presta);
-    if (this.isAvenant) {
+    if (this.isDevis) {
       const base = Number(presta.qte);
       if (presta.qte !== '?' && base >= 2) presta.qte = base - 1;
       const copy: Presta = { ...presta, renfortQte: undefined, renfort: true, qte: 1 };

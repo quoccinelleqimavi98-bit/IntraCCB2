@@ -80,51 +80,51 @@
                 <input
                   class="input presta-prix"
                   [(ngModel)]="presta.prix"
+                  (ngModelChange)="refreshSolde()"
                   inputmode="decimal"
                   placeholder="Prix"
                 />
                 <input
                   class="input presta-reduc"
                   [(ngModel)]="presta.reduc"
+                  (ngModelChange)="refreshSolde()"
                   inputmode="numeric"
                   placeholder="%"
                 />
                 <span class="presta-total">{{ lineLabel(presta) }}</span>
-                @if (!isDevis || isAvenant) {
-                  <div class="presta-actions">
-                    @if (isAvenant) {
-                      <button
-                        type="button"
-                        class="presta-renfort-toggle"
-                        [class.active]="isRenfort(presta)"
-                        (click)="toggleRenfort(presta)"
-                        [title]="
-                          isRenfort(presta)
-                            ? 'Part prestataire — cliquer pour me l’attribuer'
-                            : 'Ma part — cliquer pour l’attribuer au prestataire'
-                        "
-                      >
-                        {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
-                      </button>
-                    }
+                <div class="presta-actions">
+                  @if (isDevis) {
                     <button
                       type="button"
-                      class="presta-act"
-                      (click)="duplicatePresta(presta)"
-                      title="Dupliquer cette ligne"
+                      class="presta-renfort-toggle"
+                      [class.active]="isRenfort(presta)"
+                      (click)="toggleRenfort(presta)"
+                      [title]="
+                        isRenfort(presta)
+                          ? 'Part prestataire — cliquer pour me l’attribuer'
+                          : 'Ma part — cliquer pour l’attribuer au prestataire'
+                      "
                     >
-                      Dupliquer
+                      {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
                     </button>
-                    <button
-                      type="button"
-                      class="presta-act presta-act--del"
-                      (click)="removePresta(presta)"
-                      title="Supprimer cette ligne"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                }
+                  }
+                  <button
+                    type="button"
+                    class="presta-act"
+                    (click)="duplicatePresta(presta)"
+                    title="Dupliquer cette ligne"
+                  >
+                    Dupliquer
+                  </button>
+                  <button
+                    type="button"
+                    class="presta-act presta-act--del"
+                    (click)="removePresta(presta)"
+                    title="Supprimer cette ligne"
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
             }
           }
@@ -178,11 +178,9 @@
       }
 
       <div class="editor__total">
-        @if (isAvenant) {
+        @if (providerTotal() > 0) {
           Mon total : <span class="glow">{{ money(myTotal()) }}€</span>
-          @if (providerTotal() > 0) {
-            <span class="editor__provider">· Prestataire : {{ money(providerTotal()) }}€</span>
-          }
+          <span class="editor__provider">· Prestataire : {{ money(providerTotal()) }}€</span>
         } @else {
           Total : <span class="glow">{{ money(total()) }}€</span>
         }
