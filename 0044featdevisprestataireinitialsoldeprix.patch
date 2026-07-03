@@ -1,0 +1,175 @@
+From f8c03f3ee95fe63b792673eb6e8cb108d2d54e71 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 3 Jul 2026 07:21:13 +0000
+Subject: [PATCH] =?UTF-8?q?feat(devis):=20attribution=20prestataire=20d?=
+ =?UTF-8?q?=C3=A8s=20le=20devis=20initial=20+=20solde=20recalcul=C3=A9=20a?=
+ =?UTF-8?q?u=20prix?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Le devis initial dispose des mêmes options que les avenants : bascule
+  Moi/Presta et duplication (confie une part au prestataire). Utile quand on
+  sait dès le départ qu'un prestataire interviendra. Tout le reste (récap, PDF,
+  facture, planning) suit automatiquement, car basé sur le drapeau renfort.
+- L'affichage « Mon total · Prestataire » et le volet prestataire du PDF
+  apparaissent dès qu'une ligne est confiée à un prestataire (plus seulement en
+  avenant).
+- Facture : le solde est désormais recalculé aussi au changement de PRIX ou de
+  RÉDUCTION d'une ligne (avant : seulement à la quantité). Solde = mon total
+  (mes prestations) − tout ce qui a déjà été payé.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ .../features/documents/document-editor.html   | 68 +++++++++----------
+ src/app/features/documents/document-editor.ts | 18 ++---
+ 2 files changed, 42 insertions(+), 44 deletions(-)
+
+diff --git a/src/app/features/documents/document-editor.html b/src/app/features/documents/document-editor.html
+index 9d05284..ecfcd7d 100644
+--- a/src/app/features/documents/document-editor.html
++++ b/src/app/features/documents/document-editor.html
+@@ -80,51 +80,51 @@
+                 <input
+                   class="input presta-prix"
+                   [(ngModel)]="presta.prix"
++                  (ngModelChange)="refreshSolde()"
+                   inputmode="decimal"
+                   placeholder="Prix"
+                 />
+                 <input
+                   class="input presta-reduc"
+                   [(ngModel)]="presta.reduc"
++                  (ngModelChange)="refreshSolde()"
+                   inputmode="numeric"
+                   placeholder="%"
+                 />
+                 <span class="presta-total">{{ lineLabel(presta) }}</span>
+-                @if (!isDevis || isAvenant) {
+-                  <div class="presta-actions">
+-                    @if (isAvenant) {
+-                      <button
+-                        type="button"
+-                        class="presta-renfort-toggle"
+-                        [class.active]="isRenfort(presta)"
+-                        (click)="toggleRenfort(presta)"
+-                        [title]="
+-                          isRenfort(presta)
+-                            ? 'Part prestataire — cliquer pour me l’attribuer'
+-                            : 'Ma part — cliquer pour l’attribuer au prestataire'
+-                        "
+-                      >
+-                        {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
+-                      </button>
+-                    }
++                <div class="presta-actions">
++                  @if (isDevis) {
+                     <button
+                       type="button"
+-                      class="presta-act"
+-                      (click)="duplicatePresta(presta)"
+-                      title="Dupliquer cette ligne"
++                      class="presta-renfort-toggle"
++                      [class.active]="isRenfort(presta)"
++                      (click)="toggleRenfort(presta)"
++                      [title]="
++                        isRenfort(presta)
++                          ? 'Part prestataire — cliquer pour me l’attribuer'
++                          : 'Ma part — cliquer pour l’attribuer au prestataire'
++                      "
+                     >
+-                      Dupliquer
++                      {{ isRenfort(presta) ? 'Presta' : 'Moi' }}
+                     </button>
+-                    <button
+-                      type="button"
+-                      class="presta-act presta-act--del"
+-                      (click)="removePresta(presta)"
+-                      title="Supprimer cette ligne"
+-                    >
+-                      Supprimer
+-                    </button>
+-                  </div>
+-                }
++                  }
++                  <button
++                    type="button"
++                    class="presta-act"
++                    (click)="duplicatePresta(presta)"
++                    title="Dupliquer cette ligne"
++                  >
++                    Dupliquer
++                  </button>
++                  <button
++                    type="button"
++                    class="presta-act presta-act--del"
++                    (click)="removePresta(presta)"
++                    title="Supprimer cette ligne"
++                  >
++                    Supprimer
++                  </button>
++                </div>
+               </div>
+             }
+           }
+@@ -178,11 +178,9 @@
+       }
+ 
+       <div class="editor__total">
+-        @if (isAvenant) {
++        @if (providerTotal() > 0) {
+           Mon total : <span class="glow">{{ money(myTotal()) }}€</span>
+-          @if (providerTotal() > 0) {
+-            <span class="editor__provider">· Prestataire : {{ money(providerTotal()) }}€</span>
+-          }
++          <span class="editor__provider">· Prestataire : {{ money(providerTotal()) }}€</span>
+         } @else {
+           Total : <span class="glow">{{ money(total()) }}€</span>
+         }
+diff --git a/src/app/features/documents/document-editor.ts b/src/app/features/documents/document-editor.ts
+index 285b3fb..99db00c 100644
+--- a/src/app/features/documents/document-editor.ts
++++ b/src/app/features/documents/document-editor.ts
+@@ -329,14 +329,14 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+   }
+ 
+   /**
+-   * Recalcule le solde = mon total − déjà versé. La facture ne porte que mes
+-   * prestations ; il n'y a plus de paiement prestataires. Appelé à chaque
+-   * modification d'une ligne.
++   * Recalcule le solde = MON total (somme de mes prestations) − tout ce qui a
++   * déjà été payé (= acompte, somme des soldes des factures antérieures).
++   * Appelé à chaque modification d'une ligne (quantité, prix, réduction).
+    */
+   protected refreshSolde(): void {
+     if (this.isDevis) return;
+     const acompte = this.values.acompte !== '' ? Number(this.values.acompte) : 0;
+-    this.values.solde = this.total() - acompte;
++    this.values.solde = this.pricing.myTotal(this.prestas) - acompte;
+   }
+ 
+   protected canDecrement(presta: Presta): boolean {
+@@ -350,14 +350,14 @@ export class DocumentEditor implements OnInit, AfterViewInit {
+   /**
+    * Duplique une ligne (copie insérée juste en dessous).
+    *
+-   * Dans un avenant, dupliquer confie une part au prestataire : la nouvelle ligne
+-   * démarre à 1 et passe automatiquement en « prestataire » ; si ma ligne de base
+-   * est ≥ 2, on lui en retire 1 (le total reste identique). Ailleurs (facture),
+-   * simple copie de la ligne.
++   * Sur un devis (initial OU avenant), dupliquer confie une part au prestataire :
++   * la nouvelle ligne démarre à 1 et passe automatiquement en « prestataire » ; si
++   * ma ligne de base est ≥ 2, on lui en retire 1 (le total reste identique).
++   * Sur une facture, simple copie de la ligne.
+    */
+   protected duplicatePresta(presta: Presta): void {
+     const index = this.prestas.indexOf(presta);
+-    if (this.isAvenant) {
++    if (this.isDevis) {
+       const base = Number(presta.qte);
+       if (presta.qte !== '?' && base >= 2) presta.qte = base - 1;
+       const copy: Presta = { ...presta, renfortQte: undefined, renfort: true, qte: 1 };
+-- 
+2.43.0
+
