@@ -143,6 +143,7 @@
         @for (f of paidFactures(); track $index) {
           <button class="flist__row" (click)="openDay(f)">
             <span class="flist__name">{{ f.nom || '—' }}</span>
+            <span class="flist__num muted">{{ f.numero ? 'N° ' + f.numero : '' }}</span>
             <span class="flist__date muted">{{ f.creation }}</span>
             <span class="flist__amount glow">{{ money(f.montant) }}€</span>
           </button>
@@ -158,6 +159,7 @@
         @for (f of missingFactures(); track $index) {
           <button class="flist__row" (click)="openDay(f)">
             <span class="flist__name">{{ f.nom || '—' }}</span>
+            <span class="flist__num muted">{{ f.numero ? 'N° ' + f.numero : '' }}</span>
             <span class="flist__date muted">{{ f.creation }}</span>
             <span class="flist__amount">{{ money(f.montant) }}€</span>
           </button>

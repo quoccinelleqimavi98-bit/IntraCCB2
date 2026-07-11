@@ -12,6 +12,8 @@ export interface FactureLigne {
   /** Date de la journée associée (pour rouvrir la fiche). */
   date: string;
   montant: number;
+  /** Numéro affiché (facture pour l'encaissé, devis pour le reste à encaisser). */
+  numero: string;
   id?: number;
 }
 
@@ -195,6 +197,12 @@ export class StatsService {
     return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
   }
 
+  /** Numéro de document formaté « 012-2026 » (vide si absent). */
+  private docNum(numero: number | undefined, annee: string | undefined): string {
+    if (numero === undefined) return '';
+    return String(numero).padStart(3, '0') + (annee ? '-' + annee : '');
+  }
+
   /** Pourboires en argent liquide sur la période (non soumis aux taxes). */
   cash(journees: Journee[], year: number, month: number | null): number {
     let total = 0;
@@ -225,6 +233,7 @@ export class StatsService {
           creation: f.creation,
           date: j.date,
           montant: this.pricing.factureSold(f),
+          numero: this.docNum(f.numero, f.annee),
           id: j.id,
         });
       }
@@ -247,11 +256,13 @@ export class StatsService {
       if (!this.hasQuote(j)) continue;
       const reste = this.mineThisDay(j) - this.alreadyPaidThisDay(j);
       if (reste > 0) {
+        const devis = this.pricing.lastDevis(j);
         lignes.push({
           nom: j.client.nom ?? '',
           creation: j.date,
           date: j.date,
           montant: reste,
+          numero: this.docNum(devis?.numero, devis?.annee),
           id: j.id,
         });
       }
