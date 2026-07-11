@@ -9,6 +9,7 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import { Etape, Journee, Statut } from '../../core/models';
+import { CalendarStateService } from '../../core/services/calendar-state.service';
 import { PlanningStore } from '../../core/services/planning-store.service';
 import {
   MONTHS_FR,
@@ -49,14 +50,17 @@ interface SearchResult {
 })
 export class Calendar {
   private readonly store = inject(PlanningStore);
+  private readonly calState = inject(CalendarStateService);
 
   /** Ouverture d'une journée (date + identifiant d'événement précis si connu). */
   readonly daySelected = output<{ date: string; id?: number }>();
 
   protected readonly weekDays = WEEKDAYS_FR;
   protected readonly months = MONTHS_FR;
-  protected readonly year = signal(new Date().getFullYear());
-  protected readonly monthIndex = signal(new Date().getMonth());
+  // Mois/année affichés : conservés dans un service pour revenir sur le dernier
+  // mois consulté après ouverture d'un événement (retour / sauvegarde).
+  protected readonly year = this.calState.year;
+  protected readonly monthIndex = this.calState.monthIndex;
   protected readonly search = signal('');
 
   /** Années sélectionnables (autour de l'année courante, sélection incluse). */
