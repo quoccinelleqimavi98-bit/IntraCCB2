@@ -92,10 +92,17 @@ export class App {
   /** Index du planning en cours d'édition dans `plannings` (-1 = nouveau). */
   protected readonly planningIndex = signal(-1);
 
-  /** Nombre d'événements le même jour que la sélection. */
+  /**
+   * Date effectivement cliquée sur le calendrier — peut être une DATE LIÉE, donc
+   * différente de `selected().date` (la date principale de l'événement ouvert).
+   * Sert de contexte « ce jour » pour ajouter/naviguer entre événements.
+   */
+  private readonly clickedDate = signal('');
+
+  /** Nombre d'événements le même jour que la date cliquée. */
   protected readonly sameDayCount = computed(() => {
-    const current = this.selected();
-    return current ? this.store.entriesOn(current.date).length : 0;
+    const date = this.clickedDate() || this.selected()?.date;
+    return date ? this.store.entriesOn(date).length : 0;
   });
 
   private snapshot = '';
@@ -271,6 +278,7 @@ export class App {
   // --- Sélection / ouverture d'une journée ----------------------------------
 
   protected onDaySelected(target: { date: string; id?: number }): void {
+    this.clickedDate.set(target.date);
     const events = this.store.entriesOn(target.date);
     // Si un identifiant d'événement est fourni (clic sur une ligne précise :
     // facture, résultat de recherche, prochain événement), on ouvre CET
@@ -355,7 +363,9 @@ export class App {
     const journee = this.selected();
     if (!journee || !(await this.confirmDiscard())) return;
     this.eventIndex = 0;
-    this.open(blankJournee(journee.date));
+    // Sur une date liée, on crée le nouvel événement sur CETTE date (celle
+    // cliquée), pas sur la date principale de l'événement ouvert.
+    this.open(blankJournee(this.clickedDate() || journee.date));
   }
 
   // --- Navigation entre événements / jours ----------------------------------
@@ -363,7 +373,7 @@ export class App {
   protected async changeEvent(delta: number): Promise<void> {
     const current = this.selected();
     if (!current || !(await this.confirmDiscard())) return;
-    const events = this.store.entriesOn(current.date);
+    const events = this.store.entriesOn(this.clickedDate() || current.date);
     if (events.length === 0) return;
     let index = this.eventIndex + delta;
     if (index >= events.length) index = 0;
