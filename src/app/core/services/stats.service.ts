@@ -115,7 +115,11 @@ export class StatsService {
 
   // --- Agrégats sur la période ----------------------------------------------
 
-  /** Minutes travaillées (essai 120, autre 240, mariage depuis planning/devis). */
+  /**
+   * Minutes travaillées (essai 120, autre 240, mariage depuis planning/devis).
+   * Les heures comptent PAR JOUR : un événement sur plusieurs dates (principale
+   * + dates liées) compte ses heures pour chaque date tombant dans la période.
+   */
   hoursWorked(
     journees: Journee[],
     year: number,
@@ -124,19 +128,23 @@ export class StatsService {
     untilNow: boolean,
   ): number {
     const today = startOfToday();
-    let data = journees.filter(
-      (j) => this.inPeriod(j.date, year, month) && j.statut !== Statut.Annule,
-    );
-    if (fromNow) data = data.filter((j) => onOrAfter(j.date, today));
-    else if (untilNow) data = data.filter((j) => before(j.date, today));
-
     let time = 0;
-    for (const day of data) {
-      if (day.statut === Statut.Essai) time += 120;
-      else if (day.statut === Statut.Autre) time += 240;
+    for (const day of journees) {
+      if (day.statut === Statut.Annule) continue;
+      let perDay = 0;
+      if (day.statut === Statut.Essai) perDay = 120;
+      else if (day.statut === Statut.Autre) perDay = 240;
       else if (day.statut === Statut.Reserve) {
-        if (day.planning?.prestas?.length) time += this.planningPrestasTime(day.planning.prestas);
-        else time += this.prestasTime(day.devis?.prestas);
+        perDay = day.planning?.prestas?.length
+          ? this.planningPrestasTime(day.planning.prestas)
+          : this.prestasTime(day.devis?.prestas);
+      }
+      if (perDay === 0) continue;
+      for (const date of [day.date, ...(day.linkedDates ?? [])]) {
+        if (!this.inPeriod(date, year, month)) continue;
+        if (fromNow && !onOrAfter(date, today)) continue;
+        if (untilNow && !before(date, today)) continue;
+        time += perDay;
       }
     }
     return time;

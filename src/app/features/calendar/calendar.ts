@@ -77,10 +77,15 @@ export class Calendar {
 
   private readonly byDate = computed(() => {
     const map = new Map<string, Journee[]>();
-    for (const entry of this.store.calendarEntries()) {
-      const list = map.get(entry.date);
+    const add = (date: string, entry: Journee) => {
+      const list = map.get(date);
       if (list) list.push(entry);
-      else map.set(entry.date, [entry]);
+      else map.set(date, [entry]);
+    };
+    for (const entry of this.store.calendarEntries()) {
+      // L'événement apparaît sur sa date principale ET chacune de ses dates liées.
+      add(entry.date, entry);
+      for (const d of entry.linkedDates ?? []) add(d, entry);
     }
     return map;
   });

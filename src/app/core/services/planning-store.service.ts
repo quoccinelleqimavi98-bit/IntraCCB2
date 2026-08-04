@@ -85,9 +85,11 @@ export class PlanningStore {
     return future[0] ?? null;
   });
 
-  /** Toutes les entrées (journées + essais) tombant un jour donné. */
+  /** Toutes les entrées (journées + essais) tombant un jour donné, dates liées incluses. */
   entriesOn(date: string): Journee[] {
-    return this.calendarEntries().filter((j) => j.date === date);
+    return this.calendarEntries().filter(
+      (j) => j.date === date || (j.linkedDates?.includes(date) ?? false),
+    );
   }
 
   /**

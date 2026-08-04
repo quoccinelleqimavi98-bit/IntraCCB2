@@ -41,6 +41,13 @@ export interface Journee {
   prestataires?: number;
   /** Pourboire en argent liquide (non soumis aux taxes dans le bilan). */
   argentLiquide?: number;
+  /**
+   * Dates supplémentaires (jj/mm/aaaa) couvertes par le MÊME événement : le
+   * devis/les factures valent pour toutes ces journées réunies. L'événement
+   * s'affiche sur chacune de ces dates ; l'argent compte une seule fois (un seul
+   * dossier), les heures comptent par jour.
+   */
+  linkedDates?: string[];
   /** Avis client demandé / obtenu. */
   avis?: boolean;
 }

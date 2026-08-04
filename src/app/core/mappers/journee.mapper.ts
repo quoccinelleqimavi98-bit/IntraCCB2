@@ -304,6 +304,7 @@ export function journeeToDomain(dto: JourneeDto): Journee {
     mariagenet: dto.mariagenet,
     prestataires: toOptionalNumber(dto.prestataires),
     argentLiquide: toOptionalNumber(dto.argentliquide),
+    linkedDates: dto.devis?.linkedDates?.length ? dto.devis.linkedDates : undefined,
     avis: toBool(dto.avis),
   };
 }
@@ -330,6 +331,8 @@ export function journeeToDto(j: Journee): JourneeDto {
   if (j.mariagenet) dto.mariagenet = j.mariagenet;
   if (j.prestataires !== undefined) dto.prestataires = j.prestataires;
   if (j.argentLiquide !== undefined) dto.argentliquide = j.argentLiquide;
+  // Dates liées : rangées dans le blob devis (aucune colonne backend).
+  if (dto.devis && j.linkedDates && j.linkedDates.length) dto.devis.linkedDates = j.linkedDates;
   if (j.avis !== undefined) dto.avis = j.avis;
 
   return dto;

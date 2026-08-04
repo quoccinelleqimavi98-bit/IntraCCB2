@@ -47,6 +47,11 @@ export interface DevisDto {
    * sur les données anciennes → un seul devis.
    */
   versions?: DevisDto[];
+  /**
+   * Dates liées de l'événement, rangées dans le blob devis (aucune colonne
+   * backend). Propriété de la journée, persistée ici par commodité.
+   */
+  linkedDates?: string[];
 }
 
 export interface FactureDto {

@@ -203,6 +203,38 @@
         </div>
       </section>
 
+      @if (hasDevis) {
+        <section class="card section">
+          <h3 class="section__title">Journées liées</h3>
+          <p class="muted linked__hint">
+            Le devis et les factures valent pour cet événement sur toutes ces journées réunies :
+            l'argent compte une seule fois, les heures comptent par jour.
+          </p>
+          @if (data.linkedDates?.length) {
+            <div class="linked">
+              @for (d of data.linkedDates; track $index) {
+                <div class="linked__row">
+                  <span>{{ d | frenchDate }}</span>
+                  <button class="btn btn--ghost btn--sm" (click)="removeLinkedDate($index)">
+                    Retirer
+                  </button>
+                </div>
+              }
+            </div>
+          }
+          <div class="linked__add">
+            <input
+              class="input"
+              maxlength="10"
+              [(ngModel)]="newLinkedDate"
+              (input)="newLinkedDate = maskDate(newLinkedDate)"
+              placeholder="jj/mm/aaaa"
+            />
+            <button class="btn btn--subtle btn--sm" (click)="addLinkedDate()">+ Ajouter</button>
+          </div>
+        </section>
+      }
+
       <section class="card section">
         <h3 class="section__title">Argent liquide</h3>
         <div class="grid">

@@ -258,3 +258,23 @@
   font-size: var(--fs-xs);
   font-style: italic;
 }
+
+// Journées liées
+.linked__hint {
+  font-size: var(--fs-xs);
+  margin-bottom: var(--space-3);
+}
+.linked {
+  @include flex-column(var(--space-2));
+  margin-bottom: var(--space-3);
+}
+.linked__row {
+  @include flex-between;
+  gap: var(--space-3);
+  font-weight: 600;
+}
+.linked__add {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}

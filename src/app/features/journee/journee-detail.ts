@@ -240,4 +240,26 @@ export class JourneeDetail {
   protected openPlanningDoc(): void {
     this.openPlanning.emit();
   }
+
+  // --- Journées liées --------------------------------------------------------
+
+  /** Saisie en cours d'une date liée. */
+  protected newLinkedDate = '';
+
+  /** Ajoute une date liée (jj/mm/aaaa) à l'événement. */
+  protected addLinkedDate(): void {
+    const d = this.newLinkedDate.trim();
+    if (d.length !== 10 || d === this.data.date) return;
+    const list = (this.data.linkedDates ??= []);
+    if (!list.includes(d)) list.push(d);
+    this.newLinkedDate = '';
+  }
+
+  /** Retire une date liée. */
+  protected removeLinkedDate(index: number): void {
+    this.data.linkedDates?.splice(index, 1);
+    if (this.data.linkedDates && this.data.linkedDates.length === 0) {
+      this.data.linkedDates = undefined;
+    }
+  }
 }
