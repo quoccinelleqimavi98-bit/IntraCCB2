@@ -59,8 +59,9 @@
               <div class="presta-row" [class.presta-row--renfort]="isRenfort(presta)">
                 <input
                   class="input presta-nom"
-                  [(ngModel)]="presta.nom"
-                  placeholder="Désignation"
+                  [ngModel]="nameFor(presta)"
+                  (ngModelChange)="setName(presta, $event)"
+                  [placeholder]="isEn ? 'Description (EN)' : 'Désignation'"
                 />
                 <div class="qte">
                   <button

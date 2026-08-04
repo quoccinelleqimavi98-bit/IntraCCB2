@@ -446,6 +446,24 @@ export class DocumentEditor implements OnInit, AfterViewInit {
     return formatAmount(value);
   }
 
+  /** Vrai si l'édition est en anglais (le document est basculé en anglais). */
+  protected get isEn(): boolean {
+    return this.lang === Langue.Anglais;
+  }
+
+  /**
+   * Nom de la prestation selon la langue courante : le nom FR (`nom`) en
+   * français, la version anglaise (`en`) en anglais. Permet d'éditer les deux.
+   */
+  protected nameFor(presta: Presta): string {
+    return this.isEn ? (presta.en ?? '') : presta.nom;
+  }
+
+  protected setName(presta: Presta, value: string): void {
+    if (this.isEn) presta.en = value;
+    else presta.nom = value;
+  }
+
   // --- Actions ---------------------------------------------------------------
 
   protected save(): void {

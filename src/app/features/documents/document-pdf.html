@@ -81,7 +81,7 @@
           @if (lineTotal(presta) > 0) {
             <p>{{ money(lineTotal(presta)) }}€</p>
           } @else {
-            <p class="green">Offert</p>
+            <p class="green">{{ fr() ? 'Offert' : 'Free' }}</p>
           }
         </div>
       }
