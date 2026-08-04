@@ -52,6 +52,7 @@
       <app-planning-editor
         [journee]="selected()!"
         [catalog]="catalog()"
+        [planningIndex]="planningIndex()"
         (saved)="onPlanningSaved()"
         (closed)="onPlanningClosed()"
       />
@@ -71,7 +72,7 @@
         (dayChanged)="changeDay($event)"
         (eventChanged)="changeEvent($event)"
         (openDocument)="openDocument($event)"
-        (openPlanning)="openPlanning()"
+        (openPlanning)="openPlanning($event)"
       />
     } @else {
       @if (loading()) {

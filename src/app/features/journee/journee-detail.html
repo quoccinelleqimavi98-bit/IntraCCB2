@@ -186,11 +186,24 @@
           }
 
           @if (!isPerso) {
-            <div class="docs__row">
+            <div class="docs__row docs__row--top">
               <span class="docs__label">Planning</span>
-              <button class="btn btn--ghost btn--sm" (click)="openPlanningDoc()">
-                {{ hasPlanning ? 'Planning du ' + data.planning?.date : 'Établir le planning' }}
-              </button>
+              @if (planningsList().length) {
+                <div class="docs__factures">
+                  @for (planning of planningsList(); track $index) {
+                    <button class="btn btn--ghost btn--sm" (click)="openPlanningDoc($index)">
+                      Planning du {{ planning.date }}
+                    </button>
+                  }
+                  <button class="btn btn--subtle btn--sm" (click)="openPlanningDoc(-1)">
+                    + Planning
+                  </button>
+                </div>
+              } @else {
+                <button class="btn btn--ghost btn--sm" (click)="openPlanningDoc(-1)">
+                  Établir le planning
+                </button>
+              }
             </div>
           }
 

@@ -89,6 +89,11 @@ export interface PlanningDto {
   collegues?: Array<Array<string>>;
   invitees?: Array<Array<number | string>>;
   planningprestas?: PrestaDto[];
+  /**
+   * Liste complète des plannings rangée DANS le dernier, pour survivre au backend
+   * (la colonne `planning` ne stocke qu'un objet). Absent → un seul planning.
+   */
+  versions?: PlanningDto[];
 }
 
 export interface JourneeDto {

@@ -278,11 +278,26 @@ function planningToDto(p: Planning): PlanningDto {
   };
 }
 
+/** Liste des plannings depuis le DTO (versions, sinon planning unique). */
+function planningListFromDto(dto: PlanningDto | undefined): Planning[] {
+  if (dto?.versions?.length) return dto.versions.map(planningToDomain);
+  if (dto?.date) return [planningToDomain(dto)];
+  return [];
+}
+
+/** Sérialise la liste des plannings DANS le dernier (clé `versions`). */
+function planningListToDto(list: Planning[] | undefined): PlanningDto {
+  if (!list?.length) return {};
+  const last = list[list.length - 1];
+  return { ...planningToDto(last), versions: list.map(planningToDto) };
+}
+
 // --- Journée ---------------------------------------------------------------
 
 /** Convertit le DTO renvoyé par l'API en modèle de domaine. */
 export function journeeToDomain(dto: JourneeDto): Journee {
   const devisList = devisListFromDto(dto.devis);
+  const planningList = planningListFromDto(dto.planning);
   return {
     id: dto.id,
     date: dto.date,
@@ -300,7 +315,8 @@ export function journeeToDomain(dto: JourneeDto): Journee {
     devis: devisList.length ? devisList[devisList.length - 1] : undefined,
     devisList: devisList.length ? devisList : undefined,
     factures: (dto.factures ?? []).map(factureToDomain),
-    planning: dto.planning ? planningToDomain(dto.planning) : undefined,
+    planning: planningList.length ? planningList[planningList.length - 1] : undefined,
+    plannings: planningList.length ? planningList : undefined,
     mariagenet: dto.mariagenet,
     prestataires: toOptionalNumber(dto.prestataires),
     argentLiquide: toOptionalNumber(dto.argentliquide),
@@ -317,7 +333,7 @@ export function journeeToDto(j: Journee): JourneeDto {
     etape: j.etape,
     factures: j.factures.map(factureToDto),
     devis: devisListToDto(j.devisList?.length ? j.devisList : j.devis ? [j.devis] : []),
-    planning: j.planning ? planningToDto(j.planning) : {},
+    planning: planningListToDto(j.plannings?.length ? j.plannings : j.planning ? [j.planning] : []),
     essai: { ...j.essai },
     mariage: { ...j.mariage },
   };

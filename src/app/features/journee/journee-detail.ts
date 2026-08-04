@@ -8,8 +8,10 @@ import {
   Etape,
   Facture,
   Journee,
+  Planning,
   Presta,
   Statut,
+  planningsOf,
 } from '../../core/models';
 import { PlanningStore } from '../../core/services/planning-store.service';
 import { PricingService } from '../../core/services/pricing.service';
@@ -56,7 +58,8 @@ export class JourneeDetail {
   readonly dayChanged = output<number>();
   readonly eventChanged = output<number>();
   readonly openDocument = output<DocumentRequest>();
-  readonly openPlanning = output<void>();
+  /** Ouvre le planning d'index donné (-1 = nouveau planning). */
+  readonly openPlanning = output<number>();
 
   protected readonly Statut = Statut;
   protected readonly Etape = Etape;
@@ -143,8 +146,9 @@ export class JourneeDetail {
     return !!this.data.devis?.creation;
   }
 
-  protected get hasPlanning(): boolean {
-    return !!this.data.planning?.date;
+  /** Plannings de l'événement (un par jour-J). */
+  protected planningsList(): Planning[] {
+    return planningsOf(this.data);
   }
 
   protected get devisPrestas(): Presta[] {
@@ -237,8 +241,8 @@ export class JourneeDetail {
     else this.openFacture(-1);
   }
 
-  protected openPlanningDoc(): void {
-    this.openPlanning.emit();
+  protected openPlanningDoc(index: number): void {
+    this.openPlanning.emit(index);
   }
 
   // --- Journées liées --------------------------------------------------------

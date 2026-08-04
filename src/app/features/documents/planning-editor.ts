@@ -21,6 +21,7 @@ import {
   PlanningPresta,
   PlanningSlot,
   SlotType,
+  planningsOf,
 } from '../../core/models';
 import { DialogService } from '../../core/services/dialog.service';
 import { PdfService } from '../../core/services/pdf.service';
@@ -56,6 +57,8 @@ export class PlanningEditor implements OnInit, AfterViewInit {
 
   readonly journee = input.required<Journee>();
   readonly catalog = input<CatalogItem[]>([]);
+  /** Index du planning édité dans `plannings` (-1 = nouveau planning). */
+  readonly planningIndex = input(-1);
 
   readonly saved = output<void>();
   readonly closed = output<void>();
@@ -73,7 +76,9 @@ export class PlanningEditor implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     const j = this.journee();
-    const existing = j.planning;
+    const list = planningsOf(j);
+    const index = this.planningIndex();
+    const existing = index >= 0 ? list[index] : undefined;
 
     if (existing?.date) {
       this.state = {
@@ -90,13 +95,18 @@ export class PlanningEditor implements OnInit, AfterViewInit {
     } else {
       const renforts = this.settings.artists() ?? DEFAULT_RENFORTS;
       const baseArtists = [CLOE_ARTIST, ...renforts];
+      // Nouveau planning : on propose la première date de l'événement (principale
+      // ou liée) qui n'a pas encore de planning établi.
+      const used = new Set(list.map((p) => p.date));
+      const dates = [j.date, ...(j.linkedDates ?? [])];
+      const freeDate = dates.find((d) => !used.has(d)) ?? j.date;
       this.state = {
         artists: baseArtists.map((a) => ({ ...a })),
         slots: [],
         prestas: [],
         ceremonie: j.mariage.ceremonie ?? '',
         finPrestas: '',
-        date: j.date,
+        date: freeDate,
         domaine: j.mariage.domaine ?? '',
         adresse: j.mariage.adresse ?? '',
         codepostal: j.mariage.codepostal ?? '',
@@ -314,7 +324,14 @@ export class PlanningEditor implements OnInit, AfterViewInit {
       prestas: this.state.prestas,
     };
     if (!j.mariage.ceremonie) j.mariage.ceremonie = this.state.ceremonie;
-    j.planning = planning;
+    // Écrit dans la liste des plannings : remplace celui édité, ou l'ajoute.
+    // `planning` (singulier) reste synchronisé sur le dernier (= base).
+    const list = planningsOf(j);
+    const index = this.planningIndex();
+    if (index >= 0 && index < list.length) list[index] = planning;
+    else list.push(planning);
+    j.plannings = list;
+    j.planning = list[list.length - 1];
     // Plus aucun calcul « prestataire » à la sauvegarde : la distribution
     // intelligente ne se fait qu'à la création (voir ngOnInit / planning.build),
     // ensuite on enregistre simplement l'état édité.

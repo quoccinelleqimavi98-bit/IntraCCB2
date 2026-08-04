@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 
-import { Journee, Presta, Statut } from '../models';
+import { Journee, Presta, Statut, planningFor, planningsOf } from '../models';
 import { monthOfFr, parseFrDate, yearOfFr } from '../utils/date.utils';
 import { PricingService } from './pricing.service';
 
@@ -131,23 +131,31 @@ export class StatsService {
     let time = 0;
     for (const day of journees) {
       if (day.statut === Statut.Annule) continue;
-      let perDay = 0;
-      if (day.statut === Statut.Essai) perDay = 120;
-      else if (day.statut === Statut.Autre) perDay = 240;
-      else if (day.statut === Statut.Reserve) {
-        perDay = day.planning?.prestas?.length
-          ? this.planningPrestasTime(day.planning.prestas)
-          : this.prestasTime(day.devis?.prestas);
-      }
-      if (perDay === 0) continue;
       for (const date of [day.date, ...(day.linkedDates ?? [])]) {
         if (!this.inPeriod(date, year, month)) continue;
         if (fromNow && !onOrAfter(date, today)) continue;
         if (untilNow && !before(date, today)) continue;
-        time += perDay;
+        time += this.dayMinutes(day, date);
       }
     }
     return time;
+  }
+
+  /**
+   * Minutes travaillées pour une journée à une date donnée. Pour un événement
+   * réservé, on prend le planning propre à CETTE date (un par jour-J), sinon on
+   * estime depuis le devis.
+   */
+  private dayMinutes(day: Journee, date: string): number {
+    if (day.statut === Statut.Essai) return 120;
+    if (day.statut === Statut.Autre) return 240;
+    if (day.statut === Statut.Reserve) {
+      const planning = planningFor(day, date);
+      return planning?.prestas?.length
+        ? this.planningPrestasTime(planning.prestas)
+        : this.prestasTime(day.devis?.prestas);
+    }
+    return 0;
   }
 
   /** Tarif horaire moyen (€/h) sur la période. */
@@ -202,7 +210,10 @@ export class StatsService {
 
   /** Vrai si la journée porte un devis chiffré (ou un planning de prestations). */
   private hasQuote(j: Journee): boolean {
-    return (j.devis?.prestas?.length ?? 0) > 0 || (j.planning?.prestas?.length ?? 0) > 0;
+    return (
+      (j.devis?.prestas?.length ?? 0) > 0 ||
+      planningsOf(j).some((p) => (p.prestas?.length ?? 0) > 0)
+    );
   }
 
   /** Numéro de document formaté « 012-2026 » (vide si absent). */

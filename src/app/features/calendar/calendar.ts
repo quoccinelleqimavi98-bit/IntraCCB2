@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { Etape, Journee, Statut } from '../../core/models';
+import { Etape, Journee, Statut, planningFor } from '../../core/models';
 import { CalendarStateService } from '../../core/services/calendar-state.service';
 import { PlanningStore } from '../../core/services/planning-store.service';
 import {
@@ -112,7 +112,9 @@ export class Calendar {
         isToday: isTodayFr(date),
         isPast: isPastFr(date),
         missingEssai: reserveActive && !first.essai?.date,
-        missingPlanning: reserveActive && !first.planning?.date,
+        // Manque le planning propre à CETTE date (un événement lié peut avoir un
+        // planning par jour).
+        missingPlanning: reserveActive && !planningFor(first, date),
         count: entries.length,
       };
     });

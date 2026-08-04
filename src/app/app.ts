@@ -89,6 +89,8 @@ export class App {
 
   /** Éditeur de planning ouvert par-dessus la fiche. */
   protected readonly planningOpen = signal(false);
+  /** Index du planning en cours d'édition dans `plannings` (-1 = nouveau). */
+  protected readonly planningIndex = signal(-1);
 
   /** Nombre d'événements le même jour que la sélection. */
   protected readonly sameDayCount = computed(() => {
@@ -252,7 +254,8 @@ export class App {
 
   // --- Planning du jour-J ---------------------------------------------------
 
-  protected openPlanning(): void {
+  protected openPlanning(index: number): void {
+    this.planningIndex.set(index);
     this.planningOpen.set(true);
   }
 
