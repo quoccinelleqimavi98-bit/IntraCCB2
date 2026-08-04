@@ -1,0 +1,78 @@
+From c078cb6102f6ca77c7a288cdfbf1a187e95eb785 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 4 Aug 2026 20:48:06 +0000
+Subject: [PATCH 50/50] =?UTF-8?q?feat(=C3=A9v=C3=A9nement):=20cr=C3=A9er?=
+ =?UTF-8?q?=20un=20=C3=A9v=C3=A9nement=20sur=20la=20date=20li=C3=A9e=20cli?=
+ =?UTF-8?q?qu=C3=A9e?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+En cliquant une date liée dans le calendrier, on ouvre bien l'événement de
+base, mais « Ajouter un événement » et la navigation entre événements
+prennent désormais pour contexte la date réellement cliquée (et non la date
+principale). On peut ainsi créer un nouvel événement distinct sur une date
+liée.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/app.ts | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/app/app.ts b/src/app/app.ts
+index 602e9b3..5258f7e 100644
+--- a/src/app/app.ts
++++ b/src/app/app.ts
+@@ -92,10 +92,17 @@ export class App {
+   /** Index du planning en cours d'édition dans `plannings` (-1 = nouveau). */
+   protected readonly planningIndex = signal(-1);
+ 
+-  /** Nombre d'événements le même jour que la sélection. */
++  /**
++   * Date effectivement cliquée sur le calendrier — peut être une DATE LIÉE, donc
++   * différente de `selected().date` (la date principale de l'événement ouvert).
++   * Sert de contexte « ce jour » pour ajouter/naviguer entre événements.
++   */
++  private readonly clickedDate = signal('');
++
++  /** Nombre d'événements le même jour que la date cliquée. */
+   protected readonly sameDayCount = computed(() => {
+-    const current = this.selected();
+-    return current ? this.store.entriesOn(current.date).length : 0;
++    const date = this.clickedDate() || this.selected()?.date;
++    return date ? this.store.entriesOn(date).length : 0;
+   });
+ 
+   private snapshot = '';
+@@ -271,6 +278,7 @@ export class App {
+   // --- Sélection / ouverture d'une journée ----------------------------------
+ 
+   protected onDaySelected(target: { date: string; id?: number }): void {
++    this.clickedDate.set(target.date);
+     const events = this.store.entriesOn(target.date);
+     // Si un identifiant d'événement est fourni (clic sur une ligne précise :
+     // facture, résultat de recherche, prochain événement), on ouvre CET
+@@ -355,7 +363,9 @@ export class App {
+     const journee = this.selected();
+     if (!journee || !(await this.confirmDiscard())) return;
+     this.eventIndex = 0;
+-    this.open(blankJournee(journee.date));
++    // Sur une date liée, on crée le nouvel événement sur CETTE date (celle
++    // cliquée), pas sur la date principale de l'événement ouvert.
++    this.open(blankJournee(this.clickedDate() || journee.date));
+   }
+ 
+   // --- Navigation entre événements / jours ----------------------------------
+@@ -363,7 +373,7 @@ export class App {
+   protected async changeEvent(delta: number): Promise<void> {
+     const current = this.selected();
+     if (!current || !(await this.confirmDiscard())) return;
+-    const events = this.store.entriesOn(current.date);
++    const events = this.store.entriesOn(this.clickedDate() || current.date);
+     if (events.length === 0) return;
+     let index = this.eventIndex + delta;
+     if (index >= events.length) index = 0;
+-- 
+2.43.0
+
