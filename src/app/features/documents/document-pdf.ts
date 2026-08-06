@@ -43,6 +43,11 @@ export class DocumentPdf {
     return this.lang() === Langue.Francais;
   }
 
+  /** Libellé « à définir » (quantité et total) selon la langue. */
+  protected toDefine(): string {
+    return this.fr() ? 'À définir' : 'To define';
+  }
+
   protected visiblePrestas(): Presta[] {
     return this.prestas().filter((p) => p.qte === '?' || Number(p.qte) > 0);
   }
@@ -102,7 +107,7 @@ export class DocumentPdf {
   }
 
   protected qteLabel(presta: Presta): string {
-    if (presta.qte === '?') return this.fr() ? 'À definir' : 'To define';
+    if (presta.qte === '?') return this.toDefine();
     const n = presta.kilorly ? Number(presta.qte) * 2 : Number(presta.qte);
     const unit = presta.kilorly ? ' km' : presta.hourly ? ' h' : '';
     return `${n}${unit}`;

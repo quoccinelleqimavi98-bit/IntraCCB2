@@ -78,7 +78,9 @@
           <p class="textoverflow">{{ nameLabel(presta) }}</p>
           <p>{{ prixLabel(presta) }}</p>
           <p>{{ reducLabel(presta) }}</p>
-          @if (lineTotal(presta) > 0) {
+          @if (presta.qte === '?') {
+            <p>{{ toDefine() }}</p>
+          } @else if (lineTotal(presta) > 0) {
             <p>{{ money(lineTotal(presta)) }}€</p>
           } @else {
             <p class="green">{{ fr() ? 'Offert' : 'Free' }}</p>
