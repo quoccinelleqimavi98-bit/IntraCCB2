@@ -1,0 +1,66 @@
+From 088b98ffd1ca623aae02e983284dfb00be1b6c94 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 14:35:59 +0000
+Subject: [PATCH] =?UTF-8?q?fix(devis/facture):=20pas=20d'=C2=AB=20Offert?=
+ =?UTF-8?q?=20=C2=BB=20sur=20une=20ligne=20=C2=AB=20=C3=A0=20d=C3=A9finir?=
+ =?UTF-8?q?=20=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Une ligne à quantité « à définir » (qte '?') a un total de 0, ce qui la
+faisait afficher « Offert »/« Free » dans la colonne Total du PDF — trompeur
+(le prix n'est pas offert, il reste à définir). La colonne affiche désormais
+« À définir »/« To define ». Corrige aussi l'accent manquant côté français
+(« À definir » → « À définir »), le libellé étant centralisé.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015K6dQYgjpM2TGbCXYHy8hd
+---
+ src/app/features/documents/document-pdf.html | 4 +++-
+ src/app/features/documents/document-pdf.ts   | 7 ++++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/app/features/documents/document-pdf.html b/src/app/features/documents/document-pdf.html
+index d82e870..3da8075 100644
+--- a/src/app/features/documents/document-pdf.html
++++ b/src/app/features/documents/document-pdf.html
+@@ -78,7 +78,9 @@
+           <p class="textoverflow">{{ nameLabel(presta) }}</p>
+           <p>{{ prixLabel(presta) }}</p>
+           <p>{{ reducLabel(presta) }}</p>
+-          @if (lineTotal(presta) > 0) {
++          @if (presta.qte === '?') {
++            <p>{{ toDefine() }}</p>
++          } @else if (lineTotal(presta) > 0) {
+             <p>{{ money(lineTotal(presta)) }}€</p>
+           } @else {
+             <p class="green">{{ fr() ? 'Offert' : 'Free' }}</p>
+diff --git a/src/app/features/documents/document-pdf.ts b/src/app/features/documents/document-pdf.ts
+index b340be5..75bcd7d 100644
+--- a/src/app/features/documents/document-pdf.ts
++++ b/src/app/features/documents/document-pdf.ts
+@@ -43,6 +43,11 @@ export class DocumentPdf {
+     return this.lang() === Langue.Francais;
+   }
+ 
++  /** Libellé « à définir » (quantité et total) selon la langue. */
++  protected toDefine(): string {
++    return this.fr() ? 'À définir' : 'To define';
++  }
++
+   protected visiblePrestas(): Presta[] {
+     return this.prestas().filter((p) => p.qte === '?' || Number(p.qte) > 0);
+   }
+@@ -102,7 +107,7 @@ export class DocumentPdf {
+   }
+ 
+   protected qteLabel(presta: Presta): string {
+-    if (presta.qte === '?') return this.fr() ? 'À definir' : 'To define';
++    if (presta.qte === '?') return this.toDefine();
+     const n = presta.kilorly ? Number(presta.qte) * 2 : Number(presta.qte);
+     const unit = presta.kilorly ? ' km' : presta.hourly ? ' h' : '';
+     return `${n}${unit}`;
+-- 
+2.43.0
+
