@@ -36,11 +36,15 @@ export class Admin implements OnInit {
   protected priceInputs: Record<string, string> = {};
   protected domaines: Domaine[] = [];
   protected artists: Artist[] = [];
+  protected tvaTextFr = '';
+  protected tvaTextEn = '';
   protected savedFlash = false;
 
   ngOnInit(): void {
     const s = this.settings.settings();
     this.taxPercent = Math.round(s.taxRate * 100);
+    this.tvaTextFr = s.tvaTextFr;
+    this.tvaTextEn = s.tvaTextEn;
 
     this.priceInputs = {};
     for (const [nom, prix] of Object.entries(s.priceOverrides)) {
@@ -92,6 +96,8 @@ export class Admin implements OnInit {
       priceOverrides,
       domaines: this.domaines.filter((d) => d.domaine.trim() !== ''),
       artists: this.artists.filter((a) => `${a.prenom}${a.nom}`.trim() !== ''),
+      tvaTextFr: this.tvaTextFr,
+      tvaTextEn: this.tvaTextEn,
     };
     this.settings.replace(settings);
 
@@ -104,7 +110,14 @@ export class Admin implements OnInit {
       'Réinitialiser tous les réglages admin (retour aux valeurs par défaut) ?',
     );
     if (!ok) return;
-    this.settings.replace({ taxRate: 0.24, priceOverrides: {}, domaines: null, artists: null });
+    this.settings.replace({
+      taxRate: 0.24,
+      priceOverrides: {},
+      domaines: null,
+      artists: null,
+      tvaTextFr: '',
+      tvaTextEn: '',
+    });
     this.ngOnInit();
   }
 }
