@@ -3,7 +3,11 @@ import { FormsModule } from '@angular/forms';
 
 import { Artist, Domaine } from '../../core/models';
 import { PlanningStore } from '../../core/services/planning-store.service';
-import { AdminSettings, SettingsService } from '../../core/services/settings.service';
+import {
+  AdminSettings,
+  DEFAULT_VAT_TEXT,
+  SettingsService,
+} from '../../core/services/settings.service';
 import { DialogService } from '../../core/services/dialog.service';
 import { DEFAULT_RENFORTS } from '../documents/planning.constants';
 
@@ -36,6 +40,8 @@ export class Admin implements OnInit {
   protected priceInputs: Record<string, string> = {};
   protected domaines: Domaine[] = [];
   protected artists: Artist[] = [];
+  protected vatTextFr = DEFAULT_VAT_TEXT.fr;
+  protected vatTextEn = DEFAULT_VAT_TEXT.en;
   protected savedFlash = false;
 
   ngOnInit(): void {
@@ -54,6 +60,10 @@ export class Admin implements OnInit {
     // Renforts : liste personnalisée si elle existe, sinon les renforts par défaut.
     const baseArtists = s.artists ?? DEFAULT_RENFORTS;
     this.artists = baseArtists.map((a) => ({ ...a }));
+
+    const vatText = s.vatText ?? DEFAULT_VAT_TEXT;
+    this.vatTextFr = vatText.fr;
+    this.vatTextEn = vatText.en;
   }
 
   protected addDomaine(): void {
@@ -87,11 +97,15 @@ export class Admin implements OnInit {
       if (raw !== '' && !Number.isNaN(value)) priceOverrides[nom] = value;
     }
 
+    const vatTextFr = this.vatTextFr.trim();
+    const vatTextEn = this.vatTextEn.trim();
+
     const settings: AdminSettings = {
       taxRate: Math.min(1, Math.max(0, this.taxPercent / 100)),
       priceOverrides,
       domaines: this.domaines.filter((d) => d.domaine.trim() !== ''),
       artists: this.artists.filter((a) => `${a.prenom}${a.nom}`.trim() !== ''),
+      vatText: vatTextFr && vatTextEn ? { fr: vatTextFr, en: vatTextEn } : null,
     };
     this.settings.replace(settings);
 
@@ -104,7 +118,13 @@ export class Admin implements OnInit {
       'Réinitialiser tous les réglages admin (retour aux valeurs par défaut) ?',
     );
     if (!ok) return;
-    this.settings.replace({ taxRate: 0.24, priceOverrides: {}, domaines: null, artists: null });
+    this.settings.replace({
+      taxRate: 0.24,
+      priceOverrides: {},
+      domaines: null,
+      artists: null,
+      vatText: null,
+    });
     this.ngOnInit();
   }
 }
