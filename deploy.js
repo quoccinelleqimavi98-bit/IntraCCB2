@@ -6,12 +6,18 @@
  *   1. build de production (base-href relatif, pour fonctionner sous /intraccb) ;
  *   2. connexion FTP, suppression de l'ancienne version, envoi de la nouvelle.
  *
- * L'API (……/backend/api) n'est PAS touchée : on ne remplace que le front. Comme
- * le front est alors servi depuis la même origine que l'API, les écritures
- * repassent automatiquement par HttpClient (pas de souci CORS — voir api.service).
+ * L'API (……/backend/api) n'est PAS touchée : on ne remplace que le front.
  *
- * Identifiants : repris de l'ancien deploy.js, surchargés par des variables
- * d'environnement si on préfère ne pas les garder en clair (CCB_FTP_*).
+ * ⚠️ IDENTIFIANTS : aucun mot de passe n'est écrit en dur dans ce fichier.
+ *    Ils sont lus depuis, dans l'ordre :
+ *      1. les variables d'environnement CCB_FTP_HOST / CCB_FTP_USER / CCB_FTP_PASSWORD ;
+ *      2. le fichier local deploy.config.json (ignoré par git — voir
+ *         deploy.config.example.json).
+ *
+ * ⚠️ Le port FTP (21) est souvent bloqué dans les environnements cloud / CI
+ *    (dont Claude Code sur le web). Pour déployer sans machine locale, on utilise
+ *    plutôt le workflow GitHub Actions « Déploiement FTP (OVH) » — voir CLAUDE.md.
+ *    Ce script reste utile pour un déploiement manuel depuis un PC.
  */
 const path = require('path');
 const fs = require('fs');
@@ -30,11 +36,28 @@ try {
   process.exit(1);
 }
 
-const FTP_HOST = process.env.CCB_FTP_HOST || 'ftp.chcl8760.odns.fr';
-const FTP_USER = process.env.CCB_FTP_USER || 'chcl8760';
-const FTP_PASSWORD = process.env.CCB_FTP_PASSWORD || 'EP4S-dyzp-FAf!';
-const FTP_REMOTE_PATH = '/public_html/intraccb'; // remplace l'ancienne version
+// Config locale optionnelle (ignorée par git). Cf. deploy.config.example.json.
+let cfg = {};
+try {
+  cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'deploy.config.json'), 'utf8'));
+} catch {
+  // Pas de fichier local : on se rabat sur les variables d'environnement.
+}
+
+const FTP_HOST = process.env.CCB_FTP_HOST || cfg.host;
+const FTP_USER = process.env.CCB_FTP_USER || cfg.user;
+const FTP_PASSWORD = process.env.CCB_FTP_PASSWORD || cfg.password;
+const FTP_REMOTE_PATH = process.env.CCB_FTP_REMOTE_PATH || cfg.remotePath || '/public_html/intraccb';
 const BUILD_DIR = path.join(__dirname, 'dist', 'intra-ccb2', 'browser');
+
+if (!FTP_HOST || !FTP_USER || !FTP_PASSWORD) {
+  console.error(
+    '\n[deploy] Identifiants FTP manquants.\n' +
+      '         Copiez deploy.config.example.json en deploy.config.json et renseignez\n' +
+      '         vos identifiants (ou définissez CCB_FTP_HOST / CCB_FTP_USER / CCB_FTP_PASSWORD).\n',
+  );
+  process.exit(1);
+}
 
 /** Supprime tout le contenu d'un dossier distant (ignore s'il n'existe pas). */
 async function removeAll(client, dir) {
@@ -49,18 +72,6 @@ async function removeAll(client, dir) {
     if (item.isDirectory) await client.removeDir(remotePath);
     else await client.remove(remotePath);
   }
-}
-
-function gitCommitPush() {
-    try {
-        console.log("Git commit/push…");
-        execSync("git add .", { stdio: "inherit" });
-        execSync('git commit -m "deploy admin"', { stdio: "inherit" });
-        execSync("git push", { stdio: "inherit" });
-        console.log("Git commit/push terminé.");
-    } catch (err) {
-        console.log("Git commit/push ignoré (peut-être pas de changements).");
-    }
 }
 
 /** Envoie récursivement le contenu d'un dossier local vers le distant. */
@@ -86,8 +97,6 @@ async function deploy() {
     throw new Error(`Build introuvable : ${BUILD_DIR}`);
   }
 
-  gitCommitPush();
-
   const client = new ftp.Client();
   client.ftp.verbose = true;
   try {
@@ -108,7 +117,8 @@ async function deploy() {
       console.error(
         '         Le serveur FTP est injoignable. Lance « npm run deploy » depuis\n' +
           '         une machine ayant un accès FTP (le port 21 est souvent bloqué\n' +
-          '         dans les environnements cloud / CI).',
+          '         dans les environnements cloud / CI). Sinon, utilise le workflow\n' +
+          '         GitHub Actions « Déploiement FTP (OVH) ».',
       );
     }
     process.exitCode = 1;
