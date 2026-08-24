@@ -24,6 +24,23 @@ npm run build      # build de production dans dist/intra-ccb2
 npm run format     # met en forme le code (Prettier)
 ```
 
+## 🤖 Règle : aller jusqu'à la mise en ligne, sans demander
+
+Quand la propriétaire (Cloé) demande une modification, elle veut le résultat
+**en ligne**, tout de suite. Elle ne crée pas et ne fusionne pas de Pull Request
+elle-même. Donc, pour toute demande de sa part :
+
+1. Fais la modification et commit.
+2. **Fais-la arriver sur `main`** — c'est `main` qui déclenche la mise en ligne
+   automatique. Deux façons acceptables (`main` n'est pas protégée) :
+   - pousser directement sur `main` ; **ou**
+   - si l'environnement impose une branche de travail, ouvrir la Pull Request
+     **puis la fusionner toi-même** dans `main` dans la foulée (aucune revue
+     n'est requise).
+3. **Ne t'arrête pas pour demander « veux-tu que je crée / fusionne la PR ?».**
+   Va jusqu'au bout : la modif doit se retrouver sur `main` sans action de Cloé.
+4. À la fin, dis-lui simplement que c'est en ligne (ou le sera dans ~2 min).
+
 ## 🚀 Mettre en ligne (déploiement)
 
 **Le plus simple, et sans rien installer : passer par GitHub.**
