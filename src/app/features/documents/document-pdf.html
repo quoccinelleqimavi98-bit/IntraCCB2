@@ -105,13 +105,7 @@
                 : {{ money(providerTotal()) }}€
               </p>
             }
-            <p class="tva">
-              {{
-                fr()
-                  ? 'TVA Non Applicable - article 293 B du CGI'
-                  : 'VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)'
-              }}
-            </p>
+            <p class="tva">{{ tvaText() }}</p>
           </div>
         </div>
 
@@ -235,13 +229,7 @@
           <p class="bold total">{{ money(total()) }}€</p>
         </div>
         <div class="flex minitxt">
-          <p class="tva">
-            {{
-              fr()
-                ? 'TVA Non Applicable - article 293 B du CGI'
-                : 'VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)'
-            }}
-          </p>
+          <p class="tva">{{ tvaText() }}</p>
         </div>
 
         <div class="resume">

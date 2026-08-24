@@ -12,6 +12,10 @@ export interface AdminSettings {
   domaines: Domaine[] | null;
   /** Renforts (artistes hors Cloé) (null = non personnalisée → valeurs par défaut). */
   artists: Artist[] | null;
+  /** Mention TVA imprimée sur les devis/factures (français). */
+  tvaTextFr: string;
+  /** Mention TVA imprimée sur les devis/factures (anglais). */
+  tvaTextEn: string;
 }
 
 const DEFAULTS: AdminSettings = {
@@ -19,6 +23,8 @@ const DEFAULTS: AdminSettings = {
   priceOverrides: {},
   domaines: null,
   artists: null,
+  tvaTextFr: 'TVA Non Applicable - article 293 B du CGI',
+  tvaTextEn: 'VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)',
 };
 
 const STORAGE_KEY = 'ccb-admin-settings';
@@ -37,6 +43,8 @@ export class SettingsService {
   readonly taxRate = computed(() => this._settings().taxRate);
   readonly domaines = computed(() => this._settings().domaines);
   readonly artists = computed(() => this._settings().artists);
+  readonly tvaTextFr = computed(() => this._settings().tvaTextFr);
+  readonly tvaTextEn = computed(() => this._settings().tvaTextEn);
 
   /** Prix de base surchargé pour une prestation, le cas échéant. */
   priceFor(nom: string): number | undefined {
@@ -50,6 +58,8 @@ export class SettingsService {
       priceOverrides: settings.priceOverrides ?? {},
       domaines: settings.domaines ?? null,
       artists: settings.artists ?? null,
+      tvaTextFr: settings.tvaTextFr?.trim() ? settings.tvaTextFr : DEFAULTS.tvaTextFr,
+      tvaTextEn: settings.tvaTextEn?.trim() ? settings.tvaTextEn : DEFAULTS.tvaTextEn,
     };
     this._settings.set(clean);
     try {

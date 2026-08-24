@@ -36,6 +36,22 @@
     </div>
   </section>
 
+  <!-- Mention TVA (devis / factures) -->
+  <section class="card section">
+    <h3 class="section__title">TVA</h3>
+    <p class="muted hint">
+      Texte affiché sur les devis et les factures, en bas du document.
+    </p>
+    <div class="field">
+      <label>Texte (français)</label>
+      <input class="input" [(ngModel)]="tvaTextFr" placeholder="TVA Non Applicable - article 293 B du CGI" />
+    </div>
+    <div class="field">
+      <label>Texte (anglais)</label>
+      <input class="input" [(ngModel)]="tvaTextEn" placeholder="VAT Not Applicable - Article 293 B of the French General Tax Code (CGI)" />
+    </div>
+  </section>
+
   <!-- Domaines (ceux du sélecteur de la fiche) -->
   <section class="card section">
     <div class="section__head">

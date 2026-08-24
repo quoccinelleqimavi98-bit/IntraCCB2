@@ -2,6 +2,7 @@ import { Component, inject, input } from '@angular/core';
 
 import { Client, DocumentMode, Langue, Presta } from '../../core/models';
 import { PricingService } from '../../core/services/pricing.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { formatAmount } from '../../core/utils/money.utils';
 import { BANK, EMETTEUR } from './document.constants';
 import { DocumentKind, DocumentValues } from './document.types';
@@ -22,6 +23,7 @@ import { DocumentKind, DocumentValues } from './document.types';
 })
 export class DocumentPdf {
   private readonly pricing = inject(PricingService);
+  private readonly settings = inject(SettingsService);
 
   readonly mode = input.required<DocumentKind>();
   readonly lang = input.required<Langue>();
@@ -41,6 +43,11 @@ export class DocumentPdf {
 
   protected fr(): boolean {
     return this.lang() === Langue.Francais;
+  }
+
+  /** Mention TVA (paramétrable dans l'administration). */
+  protected tvaText(): string {
+    return this.fr() ? this.settings.tvaTextFr() : this.settings.tvaTextEn();
   }
 
   /** Libellé « à définir » (quantité et total) selon la langue. */
