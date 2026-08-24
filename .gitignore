@@ -43,4 +43,9 @@ Thumbs.db
 
 # Données de test locales
 public/mockdata.json
-deploy.js
+
+# Identifiants de déploiement locaux — NE JAMAIS versionner
+/deploy.config.json
+
+# Patchs générés (livrables, non versionnés)
+*.patch

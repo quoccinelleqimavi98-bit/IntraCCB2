@@ -1,0 +1,58 @@
+name: Déploiement FTP (OVH)
+
+# Déploie le front IntraCCB2 sur OVH par FTP, sans machine locale.
+# - Se lance automatiquement à chaque push sur `main`.
+# - Peut aussi se lancer à la main : onglet « Actions » → ce workflow → « Run workflow ».
+#
+# ⚠️ Réglage unique à faire une seule fois dans GitHub :
+#    Settings → Secrets and variables → Actions → New repository secret
+#      • FTP_PASSWORD  = mot de passe FTP OVH (voir CLAUDE.md — à changer d'abord côté OVH)
+#    (l'hôte et l'utilisateur ont une valeur par défaut ci-dessous ; pour les
+#     surcharger, créez les *variables* FTP_HOST / FTP_USER / FTP_REMOTE_PATH.)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ftp-intraccb
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Build de production
+        run: npx ng build --configuration production --base-href ./
+
+      - name: Envoi FTP vers OVH
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ vars.FTP_HOST || 'ftp.chcl8760.odns.fr' }}
+          username: ${{ vars.FTP_USER || 'chcl8760' }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          local-dir: ./dist/intra-ccb2/browser/
+          server-dir: ${{ vars.FTP_REMOTE_PATH || '/public_html/intraccb/' }}
+          # Ne touche jamais au backend PHP ni aux données du serveur.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/backend/**
+            **/.htaccess
+            **/.user.ini

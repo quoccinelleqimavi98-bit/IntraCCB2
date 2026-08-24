@@ -1,0 +1,6 @@
+{
+  "host": "ftp.chcl8760.odns.fr",
+  "user": "chcl8760",
+  "password": "VOTRE_MOT_DE_PASSE_FTP",
+  "remotePath": "/public_html/intraccb"
+}
