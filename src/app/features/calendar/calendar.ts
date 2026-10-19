@@ -19,7 +19,7 @@ import {
   toDateString,
 } from '../../core/utils/calendar.utils';
 import { compareFrDates, isPastFr, isTodayFr } from '../../core/utils/date.utils';
-import { statutClass, statutLabel } from '../../shared/statut-ui';
+import { needsAvis, statutClass, statutLabel } from '../../shared/statut-ui';
 import { FrenchDatePipe } from '../../shared/pipes/french-date.pipe';
 
 interface DayCell {
@@ -31,6 +31,7 @@ interface DayCell {
   isPast: boolean;
   missingEssai: boolean;
   missingPlanning: boolean;
+  missingAvis: boolean;
   count: number;
 }
 
@@ -38,6 +39,7 @@ interface SearchResult {
   journee: Journee;
   statutClass: string;
   statutLabel: string;
+  missingAvis: boolean;
 }
 
 /** Calendrier en vue mensuelle, avec recherche globale en liste. */
@@ -115,6 +117,7 @@ export class Calendar {
         // Manque le planning propre à CETTE date (un événement lié peut avoir un
         // planning par jour).
         missingPlanning: reserveActive && !planningFor(first, date),
+        missingAvis: !!first && needsAvis(first),
         count: entries.length,
       };
     });
@@ -134,6 +137,7 @@ export class Calendar {
         journee,
         statutClass: statutClass(journee.statut, journee.etape),
         statutLabel: statutLabel(journee.statut, journee.etape),
+        missingAvis: needsAvis(journee),
       }));
   });
 

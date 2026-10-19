@@ -48,3 +48,8 @@
   background: var(--statut, var(--brand));
   flex: none;
 }
+
+// Mariage terminé, avis client pas encore reçu (indicateur indépendant du statut).
+.dot--avis {
+  background: var(--avis-attente);
+}

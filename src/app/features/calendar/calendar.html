@@ -33,7 +33,12 @@
         <button class="results__item" (click)="openResult(result.journee)">
           <span class="results__info">
             <span class="results__date">{{ result.journee.date | frenchDate }}</span>
-            <span class="results__name">{{ result.journee.client.nom || '—' }}</span>
+            <span class="results__nameRow">
+              <span class="results__name">{{ result.journee.client.nom || '—' }}</span>
+              @if (result.missingAvis) {
+                <span class="dot dot--avis" title="Terminé – avis en attente"></span>
+              }
+            </span>
           </span>
           <span class="chip" [class]="result.statutClass">
             <span class="chip__dot"></span>{{ result.statutLabel }}
@@ -69,6 +74,9 @@
             <span class="cell__day">{{ cell.day }}</span>
             @if (cell.count > 0) {
               <span class="cell__dot dot"></span>
+            }
+            @if (cell.missingAvis) {
+              <span class="cell__avis" title="Terminé – avis en attente"></span>
             }
             @if (cell.name) {
               <span class="cell__name">{{ cell.name }}</span>

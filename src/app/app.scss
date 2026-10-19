@@ -201,4 +201,7 @@
   &--planning::before {
     background: var(--danger);
   }
+  &--avis::before {
+    background: var(--avis-attente);
+  }
 }

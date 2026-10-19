@@ -1,4 +1,5 @@
-import { Etape, Statut } from '../core/models';
+import { Etape, Journee, Statut } from '../core/models';
+import { isPastFr } from '../core/utils/date.utils';
 
 /** Métadonnées d'affichage d'un statut (libellé court + classe de couleur). */
 export interface StatutUi {
@@ -24,6 +25,11 @@ export function statutClass(statut: Statut, etape: Etape): string {
 /** Libellé court d'une entrée. */
 export function statutLabel(statut: Statut, etape: Etape): string {
   return etape === Etape.Termine ? 'Terminé' : STATUT_UI[statut].label;
+}
+
+/** Mariage dont la date est passée et pour lequel l'avis client n'a pas été reçu. */
+export function needsAvis(journee: Journee): boolean {
+  return journee.statut === Statut.Reserve && isPastFr(journee.date) && !journee.avis;
 }
 
 /** Statuts présentés dans la légende, dans l'ordre. */

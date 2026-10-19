@@ -135,6 +135,17 @@
   height: 9px;
 }
 
+// Mariage terminé, avis client pas encore reçu (coin opposé au point de statut).
+.cell__avis {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--avis-attente);
+}
+
 .cell__name {
   width: 100%;
   max-width: 100%;
@@ -226,6 +237,13 @@
   text-transform: capitalize;
 }
 
+.results__nameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .results__name {
   font-weight: 600;
   @include truncate;
@@ -262,6 +280,12 @@
       right: 5px;
       width: 7px;
       height: 7px;
+    }
+    &__avis {
+      top: 5px;
+      left: 5px;
+      width: 6px;
+      height: 6px;
     }
     &__count {
       bottom: 3px;
